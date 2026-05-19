@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POC 1B — JS SDK inline</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f6fa; color: #1a1a2e; }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 0 40px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: .05em; }
+    header nav a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: .9rem; }
+    header nav a:hover { color: #fff; }
+
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      color: #fff;
+      padding: 64px 40px 48px;
+      text-align: center;
+    }
+    .hero h1 { font-size: 2rem; margin-bottom: 12px; }
+    .hero p { color: rgba(255,255,255,.75); max-width: 520px; margin: 0 auto; }
+
+    .container { max-width: 800px; margin: 48px auto; padding: 0 24px 64px; }
+
+    .poc-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #e8f4ff;
+      color: #0057b7;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: .82rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    h2 { font-size: 1.4rem; margin-bottom: 8px; }
+    .desc { color: #555; margin-bottom: 32px; font-size: .95rem; line-height: 1.6; }
+
+    /* JS events log — shows SDK callbacks firing in real time */
+    .event-log {
+      background: #0d1117;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 32px;
+      font-family: 'Menlo', 'Monaco', monospace;
+      font-size: .8rem;
+      color: #58a6ff;
+      min-height: 64px;
+    }
+    .event-log .log-line { margin-bottom: 4px; }
+    .event-log .log-line.success { color: #3fb950; }
+    .event-log .log-line.info { color: #d2a8ff; }
+
+    /* The SDK renders the form into this div */
+    #ss-survey-widget {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 16px rgba(0,0,0,.08);
+      min-height: 480px;
+    }
+
+    .notes {
+      margin-top: 32px;
+      background: #fff;
+      border-left: 4px solid #0057b7;
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px;
+    }
+    .notes h3 { font-size: .95rem; margin-bottom: 10px; color: #0057b7; }
+    .notes ul { padding-left: 18px; font-size: .88rem; color: #444; line-height: 1.8; }
+    .notes code { background: #f0f4ff; border-radius: 4px; padding: 1px 5px; font-size: .85em; }
+
+    .back { display: inline-block; margin-top: 40px; color: #0057b7; text-decoration: none; font-size: .9rem; }
+    .back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="logo">MyBrand</span>
+    <nav>
+      <a href="/">Hub</a>
+      <a href="#">Services</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Contactez-nous</h1>
+    <p>Remplissez le formulaire ci-dessous et notre équipe vous répondra sous 24h.</p>
+  </div>
+
+  <div class="container">
+    <span class="poc-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      POC 1B — JS SDK inline
+    </span>
+
+    <h2>Formulaire de contact</h2>
+    <p class="desc">
+      Le formulaire est chargé via le <strong>JS SDK SurveySparrow</strong> et rendu directement
+      dans la page (inline). Le site contrôle les événements JS (start, answer, submit) pour
+      déclencher des actions custom — analytics, pré-remplissage, redirections. Le theming
+      peut être injecté via des CSS variables passées au SDK.
+    </p>
+
+    <!-- Real-time JS events log -->
+    <div class="event-log" id="event-log">
+      <div class="log-line info">⬡ En attente du chargement du SDK SurveySparrow…</div>
+    </div>
+
+    <!--
+      Le SDK SurveySparrow rend le formulaire dans ce div.
+      Vous pouvez le positionner n'importe où dans votre layout.
+    -->
+    <div id="ss-survey-widget"></div>
+
+    <div class="notes">
+      <h3>Notes d'intégration — POC 1B (JS SDK inline)</h3>
+      <ul>
+        <li><strong>Setup :</strong> Remplacer <code>YOUR_TOKEN</code> dans le script ci-dessous par le token de votre survey (Share → Embed → JS)</li>
+        <li><strong>Theming :</strong> Passer un objet <code>customStyle</code> au SDK (couleurs, polices, background) — surcharge le theme SurveySparrow</li>
+        <li><strong>Événements JS :</strong> <code>onSurveyStart</code>, <code>onQuestionAnswer</code>, <code>onSurveyComplete</code> — visibles dans le log ci-dessus</li>
+        <li><strong>Pré-remplissage :</strong> Passer des données via <code>defaultAnswers</code> (ex: email de l'utilisateur connecté)</li>
+        <li><strong>Avantages :</strong> Contrôle JS total, auto-resize natif, intégration analytics, pré-remplissage</li>
+        <li><strong>Limites :</strong> Dépend du JS client (SSR nécessite un traitement spécial), SDK à charger depuis CDN SurveySparrow</li>
+      </ul>
+    </div>
+
+    <a class="back" href="/">← Retour au hub</a>
+  </div>
+
+  <script>
+    const log = document.getElementById('event-log');
+
+    function addLog(message, type = '') {
+      const line = document.createElement('div');
+      line.className = 'log-line' + (type ? ' ' + type : '');
+      line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    /*
+     * ┌─────────────────────────────────────────────────────────────┐
+     * │  CONFIGURATION REQUISE                                       │
+     * │                                                              │
+     * │  1. Remplacer YOUR_TOKEN par votre token de survey           │
+     * │     (Survey → Share → Embed → "Embed in website" → JS)      │
+     * │                                                              │
+     * │  2. Remplacer YOUR_DOMAIN par votre sous-domaine SS          │
+     * │                                                              │
+     * │  3. Ajuster customStyle pour correspondre à votre charte     │
+     * └─────────────────────────────────────────────────────────────┘
+     */
+    window.sparrowConfig = {
+      token: 'YOUR_TOKEN',
+      // Optional: pre-fill fields (e.g. from logged-in user session)
+      // defaultAnswers: { email: 'john@example.com', name: 'John Doe' },
+
+      // Custom CSS variables injected into the survey iframe
+      customStyle: {
+        '--primary-color': '#0f3460',       // main brand color
+        '--button-color': '#0f3460',
+        '--button-text-color': '#ffffff',
+        '--font-family': 'system-ui, sans-serif',
+        '--background-color': '#ffffff',
+      },
+
+      // JS event callbacks — fired by the SDK
+      onSurveyStart: function () {
+        addLog('onSurveyStart — le répondant a commencé le formulaire', 'info');
+        // Example: fire an analytics event
+        // analytics.track('contact_form_started');
+      },
+
+      onQuestionAnswer: function (data) {
+        addLog('onQuestionAnswer — question "' + (data.questionText ?? data.questionId) + '" répondue');
+        // Example: send partial data to backend, adapt survey dynamically
+      },
+
+      onSurveyComplete: function (data) {
+        addLog('onSurveyComplete — soumission reçue (ID: ' + (data.submissionId ?? 'n/a') + ')', 'success');
+        // Example: trigger a custom thank-you flow, redirect, confetti…
+        // window.location.href = '/merci';
+      },
+    };
+
+    // Load SurveySparrow JS SDK
+    (function (t, e, s, n) {
+      var o, a, c;
+      t.SparrowLauncher ||
+        ((t.SparrowConfig = t.sparrowConfig || {}),
+        (o = e.createElement(s)),
+        (a = e.getElementsByTagName(s)[0]),
+        (o.async = !0),
+        // ⚠️ Replace YOUR_DOMAIN with your SurveySparrow subdomain
+        (o.src = 'https://YOUR_DOMAIN.surveysparrow.com/app/js/inline-widget.js'),
+        (o.onload = function () {
+          addLog('SDK SurveySparrow chargé', 'info');
+        }),
+        (o.onerror = function () {
+          addLog('⚠️ Erreur de chargement SDK — vérifiez YOUR_DOMAIN et YOUR_TOKEN', '');
+        }),
+        a.parentNode.insertBefore(o, a));
+    })(window, document, 'script');
+  </script>
+
+</body>
+</html>

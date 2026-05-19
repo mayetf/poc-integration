@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: poc-integration
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: SURVEYSPARROW_ACCESS_TOKEN
+        sync: false
+      - key: SURVEYSPARROW_DOMAIN
+        sync: false
+      - key: SURVEYSPARROW_TOKEN_POC1A
+        sync: false
+      - key: SURVEYSPARROW_TOKEN_POC1B
+        sync: false
+      - key: SURVEYSPARROW_TOKEN_POC1C
+        sync: false
+      - key: SURVEYSPARROW_WEBHOOK_SECRET
+        sync: false
+      - key: ONOMI_API_BASE_URL
+        sync: false
+      - key: ONOMI_API_KEY
+        sync: false
+      - key: ONOMI_ORG_ID
+        sync: false

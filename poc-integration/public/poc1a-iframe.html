@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POC 1A — iFrame embed</title>
+  <style>
+    /* ── Simulated site shell ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f6fa; color: #1a1a2e; }
+
+    header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 0 40px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: .05em; }
+    header nav a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: .9rem; }
+    header nav a:hover { color: #fff; }
+
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      color: #fff;
+      padding: 64px 40px 48px;
+      text-align: center;
+    }
+    .hero h1 { font-size: 2rem; margin-bottom: 12px; }
+    .hero p { color: rgba(255,255,255,.75); max-width: 520px; margin: 0 auto; }
+
+    .container { max-width: 800px; margin: 48px auto; padding: 0 24px 64px; }
+
+    .poc-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #e8f4ff;
+      color: #0057b7;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: .82rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    h2 { font-size: 1.4rem; margin-bottom: 8px; }
+    .desc { color: #555; margin-bottom: 32px; font-size: .95rem; line-height: 1.6; }
+
+    /* ── iFrame container — adapt sizing to match your site design ── */
+    .form-wrapper {
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 16px rgba(0,0,0,.08);
+    }
+
+    .form-wrapper iframe {
+      width: 100%;
+      /* Height: adjust to your form length. SurveySparrow also supports auto-resize
+         via postMessage — see notes below */
+      height: 620px;
+      border: none;
+      display: block;
+    }
+
+    .notes {
+      margin-top: 32px;
+      background: #fff;
+      border-left: 4px solid #0057b7;
+      border-radius: 0 8px 8px 0;
+      padding: 20px 24px;
+    }
+    .notes h3 { font-size: .95rem; margin-bottom: 10px; color: #0057b7; }
+    .notes ul { padding-left: 18px; font-size: .88rem; color: #444; line-height: 1.8; }
+    .notes code { background: #f0f4ff; border-radius: 4px; padding: 1px 5px; font-size: .85em; }
+
+    .back { display: inline-block; margin-top: 40px; color: #0057b7; text-decoration: none; font-size: .9rem; }
+    .back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Simulated site header -->
+  <header>
+    <span class="logo">MyBrand</span>
+    <nav>
+      <a href="/">Hub</a>
+      <a href="#">Services</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <!-- Hero section -->
+  <div class="hero">
+    <h1>Contactez-nous</h1>
+    <p>Remplissez le formulaire ci-dessous et notre équipe vous répondra sous 24h.</p>
+  </div>
+
+  <div class="container">
+    <span class="poc-label">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      POC 1A — iFrame embed
+    </span>
+
+    <h2>Formulaire de contact</h2>
+    <p class="desc">
+      Le formulaire ci-dessous est servi directement par SurveySparrow via un <strong>iframe</strong>.
+      Le theming (couleurs, polices) est géré dans le Theme Builder SurveySparrow.
+      Aucun JavaScript n'est requis côté site. Les réponses sont stockées dans SurveySparrow
+      et un email de confirmation est envoyé automatiquement au répondant.
+    </p>
+
+    <div class="form-wrapper">
+      <!--
+        ┌─────────────────────────────────────────────────────────┐
+        │  CONFIGURATION REQUISE                                   │
+        │                                                          │
+        │  Remplacez l'URL ci-dessous par votre URL d'embed        │
+        │  SurveySparrow:                                          │
+        │  Survey → Share → Embed → "Embed in your website"        │
+        │                                                          │
+        │  Format :                                                │
+        │  https://[domain].surveysparrow.com/s/[slug]/[token]     │
+        └─────────────────────────────────────────────────────────┘
+      -->
+      <iframe
+        src="https://YOUR_DOMAIN.surveysparrow.com/s/YOUR_FORM_SLUG/YOUR_TOKEN"
+        title="Formulaire de contact"
+        loading="lazy"
+        allow="fullscreen"
+      ></iframe>
+    </div>
+
+    <!--
+      NOTE — Auto-resize avec postMessage :
+      SurveySparrow peut émettre un message postMessage avec la hauteur du formulaire.
+      Pour activer le resize automatique, ajoutez ce script :
+
+      <script>
+        window.addEventListener('message', function(e) {
+          if (e.data && e.data.type === 'SS_HEIGHT_UPDATE') {
+            document.querySelector('.form-wrapper iframe').style.height = e.data.height + 'px';
+          }
+        });
+      </script>
+
+      Vérifiez dans votre plan SurveySparrow si cette fonctionnalité est disponible.
+    -->
+
+    <div class="notes">
+      <h3>Notes d'intégration — POC 1A (iFrame)</h3>
+      <ul>
+        <li><strong>Setup :</strong> Copier l'URL depuis Survey → Share → Embed (onglet "Website")</li>
+        <li><strong>Theming :</strong> Géré via le <em>Theme Builder</em> dans SurveySparrow — couleurs, polices, background</li>
+        <li><strong>Email confirmation :</strong> Configurer dans Survey → Settings → Email Notifications (template personnalisable)</li>
+        <li><strong>Webhook :</strong> Configurer <code>POST /webhook/surveysparrow</code> dans Settings → Integrations → Webhooks pour déclencher des actions côté backend après soumission</li>
+        <li><strong>Avantages :</strong> Zéro JS, logique conditionnelle 100% gérée par SurveySparrow, facile à updater sans redéploiement</li>
+        <li><strong>Limites :</strong> Theming limité au theme builder, pas d'accès aux événements JS du formulaire, hauteur fixe ou auto-resize partiel</li>
+      </ul>
+    </div>
+
+    <a class="back" href="/">← Retour au hub</a>
+  </div>
+
+</body>
+</html>

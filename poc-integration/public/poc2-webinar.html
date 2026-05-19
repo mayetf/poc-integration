@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POC 2 — Webinars Onomi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f6fa; color: #1a1a2e; }
+
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 0 40px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: .05em; }
+    header nav a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: .9rem; }
+
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      color: #fff; padding: 64px 40px 48px; text-align: center;
+    }
+    .hero h1 { font-size: 2rem; margin-bottom: 12px; }
+    .hero p { color: rgba(255,255,255,.75); max-width: 540px; margin: 0 auto; }
+
+    .poc-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.15); color: #fff;
+      border-radius: 6px; padding: 5px 12px;
+      font-size: .78rem; font-weight: 600; margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,.25);
+    }
+
+    .container { max-width: 960px; margin: 48px auto; padding: 0 24px 64px; }
+
+    /* ── Webinar grid ── */
+    #webinar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 48px;
+    }
+
+    .webinar-card {
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+      overflow: hidden; display: flex; flex-direction: column;
+      transition: box-shadow .15s;
+    }
+    .webinar-card:hover { box-shadow: 0 6px 24px rgba(0,0,0,.12); }
+
+    .card-cover {
+      height: 160px; background: linear-gradient(135deg, #0f3460, #16213e);
+      position: relative; display: flex; align-items: center; justify-content: center;
+    }
+    .card-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .card-cover .cover-placeholder {
+      color: rgba(255,255,255,.3); font-size: 3rem;
+    }
+
+    /* Status badge on cover */
+    .status-badge {
+      position: absolute; top: 10px; right: 10px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .status-badge.live { background: #e94560; color: #fff; animation: pulse 1.5s infinite; }
+    .status-badge.scheduled { background: rgba(255,255,255,.85); color: #1a1a2e; }
+    .status-badge.ended { background: rgba(0,0,0,.4); color: rgba(255,255,255,.7); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: .6; }
+    }
+
+    .card-body { padding: 20px; flex: 1; display: flex; flex-direction: column; }
+    .card-title { font-size: 1rem; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+    .card-desc { font-size: .85rem; color: #666; line-height: 1.5; flex: 1; margin-bottom: 16px; }
+    .card-meta { font-size: .8rem; color: #888; margin-bottom: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .card-meta span { display: flex; align-items: center; gap: 6px; }
+
+    .card-actions { display: flex; flex-direction: column; gap: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 16px; border-radius: 7px;
+      font-size: .88rem; font-weight: 600; cursor: pointer;
+      border: none; text-decoration: none; transition: opacity .15s, transform .1s;
+      width: 100%;
+    }
+    .btn:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-register { background: #0f3460; color: #fff; }
+    .btn-live { background: #e94560; color: #fff; }
+    .btn-ended { background: #eee; color: #999; cursor: not-allowed; }
+    .btn-outline { background: transparent; border: 1.5px solid #0f3460; color: #0f3460; }
+
+    /* ── Loading / error states ── */
+    #state-loading, #state-error, #state-empty {
+      text-align: center; padding: 64px 24px; display: none;
+    }
+    #state-loading.active, #state-error.active, #state-empty.active { display: block; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid #e0e0e0;
+      border-top-color: #0f3460; border-radius: 50%;
+      animation: spin .8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #state-error p { color: #e94560; }
+    #state-empty p { color: #888; }
+
+    /* ── Registration modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      backdrop-filter: blur(4px); z-index: 1000;
+      display: none; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: #fff; border-radius: 14px; padding: 32px;
+      max-width: 440px; width: 100%; position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .modal h2 { font-size: 1.2rem; margin-bottom: 6px; }
+    .modal .webinar-name { color: #555; font-size: .9rem; margin-bottom: 24px; }
+    .modal-close {
+      position: absolute; top: 16px; right: 16px;
+      background: none; border: none; cursor: pointer;
+      color: #888; font-size: 1.2rem; line-height: 1;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: .85rem; font-weight: 600; margin-bottom: 6px; color: #333; }
+    input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #ddd;
+      border-radius: 7px; font-size: .9rem; outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: #0f3460; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn-submit {
+      width: 100%; padding: 13px; background: #0f3460; color: #fff;
+      border: none; border-radius: 7px; font-size: .95rem; font-weight: 600;
+      cursor: pointer; margin-top: 8px; transition: opacity .15s;
+    }
+    .btn-submit:hover { opacity: .88; }
+    .btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Success state inside modal ── */
+    .modal-success { display: none; text-align: center; padding: 16px 0; }
+    .modal-success.show { display: block; }
+    .modal-form.hide { display: none; }
+    .success-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .modal-success h3 { margin-bottom: 8px; }
+    .modal-success p { color: #555; font-size: .9rem; margin-bottom: 20px; }
+    .live-link-box {
+      background: #f0f9ff; border: 1.5px solid #0057b7;
+      border-radius: 8px; padding: 16px; margin-bottom: 16px;
+    }
+    .live-link-box p { font-size: .82rem; color: #0057b7; margin-bottom: 8px; font-weight: 600; }
+    .live-link-box a {
+      display: block; word-break: break-all;
+      color: #0057b7; font-size: .85rem; text-decoration: none;
+    }
+    .live-link-box a:hover { text-decoration: underline; }
+    .btn-join-live {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; background: #e94560; color: #fff;
+      border-radius: 7px; font-weight: 600; text-decoration: none;
+      font-size: .95rem;
+    }
+
+    /* ── Notes ── */
+    .notes {
+      background: #fff; border-left: 4px solid #c04a00;
+      border-radius: 0 8px 8px 0; padding: 20px 24px; margin-bottom: 32px;
+    }
+    .notes h3 { font-size: .95rem; margin-bottom: 10px; color: #c04a00; }
+    .notes ul { padding-left: 18px; font-size: .88rem; color: #444; line-height: 1.8; }
+    .notes code { background: #fff5f0; border-radius: 4px; padding: 1px 5px; font-size: .85em; }
+
+    .back { color: #0057b7; text-decoration: none; font-size: .9rem; }
+    .back:hover { text-decoration: underline; }
+
+    /* Error message in modal */
+    .form-error { color: #e94560; font-size: .83rem; margin-top: 12px; display: none; }
+    .form-error.show { display: block; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="logo">MyBrand</span>
+    <nav>
+      <a href="/">Hub</a>
+      <a href="#">Services</a>
+      <a href="#">Webinars</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <div class="poc-label">POC 2 — Onomi / SpotMe Webinar Integration</div>
+    <h1>Nos webinars</h1>
+    <p>Découvrez nos événements en ligne et inscrivez-vous directement depuis cette page.</p>
+  </div>
+
+  <div class="container">
+
+    <!-- Loading state -->
+    <div id="state-loading" class="active">
+      <div class="spinner"></div>
+      <p>Chargement des webinars depuis Onomi…</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="state-error">
+      <p>⚠️ Impossible de charger les webinars. Vérifiez la configuration API Onomi.</p>
+      <p style="color:#888;font-size:.85rem;margin-top:8px" id="error-detail"></p>
+    </div>
+
+    <!-- Empty state -->
+    <div id="state-empty">
+      <p>Aucun webinar disponible pour le moment.</p>
+    </div>
+
+    <!-- Webinar cards grid — populated by JS -->
+    <div id="webinar-grid"></div>
+
+    <div class="notes">
+      <h3>Notes d'intégration — POC 2 (Onomi / SpotMe)</h3>
+      <ul>
+        <li><strong>Liste dynamique :</strong> <code>GET /api/onomi/webinars</code> — proxy vers l'API Onomi, filtré par statut <em>published</em></li>
+        <li><strong>Détail événement :</strong> <code>GET /api/onomi/webinars/:id</code> — récupère speakers, agenda, lien live</li>
+        <li><strong>Inscription :</strong> <code>POST /api/onomi/webinars/:id/register</code> — crée l'attendee dans Onomi, retourne <code>personal_link</code></li>
+        <li><strong>Lien live personnalisé :</strong> <code>personal_link</code> dans la réponse d'inscription = URL unique par attendee pour rejoindre le stream Onomi</li>
+        <li><strong>Lien live public :</strong> <code>GET /api/onomi/webinars/:id/live-link</code> — pour afficher un bouton "Rejoindre" quand l'événement est en cours</li>
+        <li><strong>Statuts gérés :</strong> <em>scheduled</em> (inscription ouverte), <em>live</em> (bouton "Rejoindre maintenant" rouge), <em>ended</em> (bouton désactivé)</li>
+        <li><strong>Email confirmation :</strong> <code>send_confirmation_email: true</code> dans la requête d'inscription → Onomi envoie son propre email de confirmation</li>
+      </ul>
+    </div>
+
+    <a class="back" href="/">← Retour au hub</a>
+  </div>
+
+  <!-- ── Registration modal ── -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal">
+      <button class="modal-close" id="modal-close" aria-label="Fermer">✕</button>
+
+      <!-- Form -->
+      <div class="modal-form" id="modal-form">
+        <h2>S'inscrire au webinar</h2>
+        <p class="webinar-name" id="modal-webinar-name"></p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reg-firstname">Prénom *</label>
+            <input type="text" id="reg-firstname" placeholder="Marie" required>
+          </div>
+          <div class="form-group">
+            <label for="reg-lastname">Nom *</label>
+            <input type="text" id="reg-lastname" placeholder="Dupont" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="reg-email">Email *</label>
+          <input type="email" id="reg-email" placeholder="marie@entreprise.com" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reg-company">Entreprise</label>
+            <input type="text" id="reg-company" placeholder="Acme Corp">
+          </div>
+          <div class="form-group">
+            <label for="reg-jobtitle">Fonction</label>
+            <input type="text" id="reg-jobtitle" placeholder="Directeur Marketing">
+          </div>
+        </div>
+
+        <p class="form-error" id="form-error"></p>
+        <button class="btn-submit" id="btn-submit">S'inscrire</button>
+      </div>
+
+      <!-- Success state with live link -->
+      <div class="modal-success" id="modal-success">
+        <div class="success-icon">✅</div>
+        <h3>Inscription confirmée !</h3>
+        <p>Un email de confirmation vous a été envoyé par Onomi.</p>
+
+        <div class="live-link-box" id="live-link-box" style="display:none">
+          <p>🔴 Votre lien personnel pour rejoindre l'événement :</p>
+          <a id="personal-link-url" href="#" target="_blank" rel="noopener"></a>
+        </div>
+
+        <a class="btn-join-live" id="btn-join-live" href="#" target="_blank" rel="noopener" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Rejoindre le stream Onomi
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/onomi';
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let currentWebinarId = null;
+
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+    const grid          = document.getElementById('webinar-grid');
+    const stateLoading  = document.getElementById('state-loading');
+    const stateError    = document.getElementById('state-error');
+    const stateEmpty    = document.getElementById('state-empty');
+    const modal         = document.getElementById('modal-backdrop');
+    const modalForm     = document.getElementById('modal-form');
+    const modalSuccess  = document.getElementById('modal-success');
+    const modalName     = document.getElementById('modal-webinar-name');
+    const btnSubmit     = document.getElementById('btn-submit');
+    const formError     = document.getElementById('form-error');
+
+    // ── Utilities ──────────────────────────────────────────────────────────────
+    function setState(name) {
+      ['loading', 'error', 'empty'].forEach(s => {
+        document.getElementById('state-' + s).classList.remove('active');
+      });
+      if (name) document.getElementById('state-' + name).classList.add('active');
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleDateString('fr-FR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    }
+
+    // ── Load webinars ──────────────────────────────────────────────────────────
+    async function loadWebinars() {
+      setState('loading');
+      try {
+        const res = await fetch(`${API_BASE}/webinars`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { webinars } = await res.json();
+
+        setState(null);
+
+        if (!webinars || webinars.length === 0) {
+          setState('empty');
+          return;
+        }
+
+        grid.innerHTML = webinars.map(renderCard).join('');
+
+        // Bind register buttons
+        grid.querySelectorAll('[data-register]').forEach(btn => {
+          btn.addEventListener('click', () => openModal(btn.dataset.register, btn.dataset.title));
+        });
+
+        // Bind "Join live" buttons (public URL — no registration required)
+        grid.querySelectorAll('[data-live-url]').forEach(btn => {
+          btn.addEventListener('click', () => window.open(btn.dataset.liveUrl, '_blank', 'noopener'));
+        });
+
+      } catch (err) {
+        setState('error');
+        document.getElementById('error-detail').textContent = err.message;
+      }
+    }
+
+    function renderCard(w) {
+      const isLive      = w.status === 'live';
+      const isEnded     = w.status === 'ended';
+      const isScheduled = !isLive && !isEnded;
+
+      const coverHtml = w.cover_image
+        ? `<img src="${w.cover_image}" alt="${w.title}" loading="lazy">`
+        : `<div class="cover-placeholder">📡</div>`;
+
+      const badgeClass = isLive ? 'live' : isEnded ? 'ended' : 'scheduled';
+      const badgeText  = isLive ? '🔴 En direct' : isEnded ? 'Terminé' : 'À venir';
+
+      let actionHtml = '';
+      if (isLive && w.live_url) {
+        // Event is live + public URL available → show direct join button
+        actionHtml = `
+          <button class="btn btn-live" data-live-url="${w.live_url}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Rejoindre maintenant
+          </button>`;
+      } else if (isLive) {
+        // Live but no public URL — registration gives personal link
+        actionHtml = `<button class="btn btn-live" data-register="${w.id}" data-title="${w.title}">S'inscrire pour le lien live</button>`;
+      } else if (isEnded) {
+        actionHtml = `<button class="btn btn-ended" disabled>Événement terminé</button>`;
+      } else if (w.registration_open) {
+        actionHtml = `<button class="btn btn-register" data-register="${w.id}" data-title="${w.title}">S'inscrire</button>`;
+      } else {
+        actionHtml = `<button class="btn btn-ended" disabled>Inscriptions fermées</button>`;
+      }
+
+      return `
+        <div class="webinar-card">
+          <div class="card-cover">
+            ${coverHtml}
+            <span class="status-badge ${badgeClass}">${badgeText}</span>
+          </div>
+          <div class="card-body">
+            <div class="card-title">${w.title}</div>
+            <div class="card-desc">${w.description || ''}</div>
+            <div class="card-meta">
+              <span>📅 ${formatDate(w.start_date)}</span>
+              ${w.attendees_count != null ? `<span>👥 ${w.attendees_count} inscrits</span>` : ''}
+            </div>
+            <div class="card-actions">${actionHtml}</div>
+          </div>
+        </div>`;
+    }
+
+    // ── Modal ──────────────────────────────────────────────────────────────────
+    function openModal(webinarId, webinarTitle) {
+      currentWebinarId = webinarId;
+      modalName.textContent = webinarTitle;
+      modalForm.classList.remove('hide');
+      modalSuccess.classList.remove('show');
+      formError.classList.remove('show');
+      ['reg-firstname', 'reg-lastname', 'reg-email', 'reg-company', 'reg-jobtitle']
+        .forEach(id => document.getElementById(id).value = '');
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'S\'inscrire';
+      modal.classList.add('open');
+    }
+
+    function closeModal() {
+      modal.classList.remove('open');
+      currentWebinarId = null;
+    }
+
+    document.getElementById('modal-close').addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+    // ── Registration submit ────────────────────────────────────────────────────
+    btnSubmit.addEventListener('click', async () => {
+      const first_name = document.getElementById('reg-firstname').value.trim();
+      const last_name  = document.getElementById('reg-lastname').value.trim();
+      const email      = document.getElementById('reg-email').value.trim();
+      const company    = document.getElementById('reg-company').value.trim();
+      const job_title  = document.getElementById('reg-jobtitle').value.trim();
+
+      if (!first_name || !last_name || !email) {
+        formError.textContent = 'Veuillez remplir les champs obligatoires (Prénom, Nom, Email).';
+        formError.classList.add('show');
+        return;
+      }
+
+      formError.classList.remove('show');
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Inscription en cours…';
+
+      try {
+        const res = await fetch(`${API_BASE}/webinars/${currentWebinarId}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ first_name, last_name, email, company, job_title }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (res.status === 409) {
+            formError.textContent = 'Cette adresse email est déjà inscrite à cet événement.';
+          } else {
+            formError.textContent = data.error ?? 'Une erreur est survenue. Réessayez.';
+          }
+          formError.classList.add('show');
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = 'S\'inscrire';
+          return;
+        }
+
+        // ── Success — show personal live link ──────────────────────────────────
+        modalForm.classList.add('hide');
+        modalSuccess.classList.add('show');
+
+        const personalLink = data.personal_link ?? data.live_url;
+
+        if (personalLink) {
+          document.getElementById('live-link-box').style.display = 'block';
+          const linkEl = document.getElementById('personal-link-url');
+          linkEl.href = personalLink;
+          linkEl.textContent = personalLink;
+
+          const joinBtn = document.getElementById('btn-join-live');
+          joinBtn.href = personalLink;
+          joinBtn.style.display = 'inline-flex';
+        }
+
+      } catch (err) {
+        formError.textContent = 'Erreur réseau. Vérifiez votre connexion.';
+        formError.classList.add('show');
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'S\'inscrire';
+      }
+    });
+
+    // ── Init ───────────────────────────────────────────────────────────────────
+    loadWebinars();
+  </script>
+
+</body>
+</html>

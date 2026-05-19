@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POC 1C — JS SDK popup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f6fa; color: #1a1a2e; }
+
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 0 40px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: .05em; }
+    header nav a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: .9rem; }
+    header nav a:hover { color: #fff; }
+
+    /* ── Page content — simulated landing page ── */
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      color: #fff; padding: 80px 40px 64px; text-align: center;
+    }
+    .hero h1 { font-size: 2.4rem; margin-bottom: 16px; line-height: 1.2; }
+    .hero p { color: rgba(255,255,255,.75); max-width: 540px; margin: 0 auto 36px; font-size: 1.05rem; }
+
+    /* CTA buttons — popup triggers */
+    .cta-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px; border-radius: 8px;
+      font-size: .95rem; font-weight: 600; cursor: pointer;
+      border: none; transition: transform .1s, box-shadow .15s;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+    .btn-primary { background: #e94560; color: #fff; }
+    .btn-outline { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.5); }
+    .btn-outline:hover { border-color: #fff; }
+
+    .features {
+      max-width: 800px; margin: 64px auto; padding: 0 24px;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+    }
+    .feature-card {
+      background: #fff; border-radius: 10px; padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    }
+    .feature-card h3 { font-size: 1rem; margin-bottom: 8px; }
+    .feature-card p { font-size: .88rem; color: #666; line-height: 1.6; }
+    .icon { font-size: 1.6rem; margin-bottom: 12px; }
+
+    /* Second CTA section */
+    .cta-section {
+      background: #fff; border-top: 1px solid #eee;
+      padding: 48px 24px; text-align: center;
+    }
+    .cta-section h2 { font-size: 1.5rem; margin-bottom: 8px; }
+    .cta-section p { color: #666; margin-bottom: 24px; }
+    .btn-dark { background: #1a1a2e; color: #fff; }
+
+    .poc-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,.15); color: #fff;
+      border-radius: 6px; padding: 5px 12px;
+      font-size: .78rem; font-weight: 600; margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,.25);
+    }
+
+    .notes {
+      max-width: 800px; margin: 0 auto 48px; padding: 0 24px;
+      background: #fff; border-left: 4px solid #0057b7;
+      border-radius: 0 8px 8px 0; padding: 20px 24px;
+    }
+    .notes h3 { font-size: .95rem; margin-bottom: 10px; color: #0057b7; }
+    .notes ul { padding-left: 18px; font-size: .88rem; color: #444; line-height: 1.8; }
+    .notes code { background: #f0f4ff; border-radius: 4px; padding: 1px 5px; font-size: .85em; }
+
+    .back-wrap { text-align: center; padding-bottom: 48px; }
+    .back { color: #0057b7; text-decoration: none; font-size: .9rem; }
+    .back:hover { text-decoration: underline; }
+
+    /* ── Event log overlay ── */
+    #event-log {
+      position: fixed; bottom: 16px; right: 16px;
+      background: rgba(13,17,23,.92); color: #58a6ff;
+      border-radius: 8px; padding: 12px 16px;
+      font-family: monospace; font-size: .75rem;
+      max-width: 340px; max-height: 160px; overflow-y: auto;
+      z-index: 9999; backdrop-filter: blur(4px);
+    }
+    #event-log .log-line { margin-bottom: 3px; }
+    #event-log .log-line.success { color: #3fb950; }
+    #event-log .log-line.info { color: #d2a8ff; }
+    #event-log .log-title { color: #8b949e; margin-bottom: 8px; font-weight: bold; font-size: .7rem; letter-spacing: .05em; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="logo">MyBrand</span>
+    <nav>
+      <a href="/">Hub</a>
+      <a href="#">Services</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <!-- Hero with CTA buttons that trigger the popup -->
+  <div class="hero">
+    <div class="poc-label">POC 1C — JS SDK popup / overlay</div>
+    <h1>Votre partenaire<br>de transformation digitale</h1>
+    <p>Découvrez comment nous pouvons accélérer vos projets. Parlez-nous de vos besoins.</p>
+
+    <div class="cta-group">
+      <!--
+        data-ss-trigger="popup" → ouvre le formulaire en overlay (popup centré)
+        data-ss-trigger="sidetab" → ouvre depuis le côté de l'écran
+        data-ss-trigger="popover" → petit popover attaché au bouton
+      -->
+      <button class="btn btn-primary" id="btn-popup">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Nous contacter (popup)
+      </button>
+      <button class="btn btn-outline" id="btn-sidetab">
+        Ouvrir en side tab →
+      </button>
+    </div>
+  </div>
+
+  <!-- Simulated page content -->
+  <div class="features">
+    <div class="feature-card">
+      <div class="icon">⚡</div>
+      <h3>Déploiement rapide</h3>
+      <p>Mise en production en quelques semaines grâce à notre méthodologie éprouvée.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">🔗</div>
+      <h3>Intégrations natives</h3>
+      <p>Compatible avec votre stack existant : CRM, ERP, outils marketing.</p>
+    </div>
+    <div class="feature-card">
+      <div class="icon">📊</div>
+      <h3>Analytics avancés</h3>
+      <p>Tableaux de bord temps réel pour suivre vos KPIs métier.</p>
+    </div>
+  </div>
+
+  <!-- Second CTA section mid-page -->
+  <div class="cta-section">
+    <h2>Prêt à démarrer ?</h2>
+    <p>Notre équipe est disponible pour un premier échange sans engagement.</p>
+    <button class="btn btn-dark" id="btn-popup-2">
+      Demander un devis
+    </button>
+  </div>
+
+  <div style="height:32px"></div>
+
+  <div class="notes">
+    <h3>Notes d'intégration — POC 1C (JS SDK popup / side tab)</h3>
+    <ul>
+      <li><strong>Setup :</strong> Remplacer <code>YOUR_TOKEN</code> et <code>YOUR_DOMAIN</code> dans le script ci-dessous</li>
+      <li><strong>Modes :</strong> <code>popup</code> (overlay centré), <code>sidetab</code> (panneau latéral), <code>popover</code> (bulle attachée à un élément)</li>
+      <li><strong>Déclencheurs :</strong> N'importe quel élément peut déclencher l'ouverture via <code>SparrowLauncher.open()</code></li>
+      <li><strong>Événements JS :</strong> <code>onOpen</code>, <code>onClose</code>, <code>onSurveyComplete</code> — visibles dans le log en bas à droite</li>
+      <li><strong>Avantages :</strong> N'interrompt pas le scroll de la page, idéal pour CTA secondaires ou exit-intent</li>
+      <li><strong>Limites :</strong> Le formulaire est dans un overlay — moins intégré visuellement qu'un inline, mais le theming reste complet</li>
+    </ul>
+  </div>
+
+  <div class="back-wrap">
+    <a class="back" href="/">← Retour au hub</a>
+  </div>
+
+  <!-- JS event log overlay -->
+  <div id="event-log">
+    <div class="log-title">SDK EVENTS</div>
+    <div class="log-line info">En attente…</div>
+  </div>
+
+  <script>
+    const logEl = document.getElementById('event-log');
+    function addLog(msg, type = '') {
+      const line = document.createElement('div');
+      line.className = 'log-line' + (type ? ' ' + type : '');
+      line.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    /*
+     * ┌────────────────────────────────────────────────────────────┐
+     * │  CONFIGURATION REQUISE                                      │
+     * │  Remplacer YOUR_TOKEN et YOUR_DOMAIN                        │
+     * └────────────────────────────────────────────────────────────┘
+     */
+    window.sparrowConfig = {
+      token: 'YOUR_TOKEN',
+      // Popup mode: 'popup' | 'sidetab' | 'popover'
+      selfSurvey: false,
+
+      customStyle: {
+        '--primary-color': '#0f3460',
+        '--button-color': '#e94560',
+        '--button-text-color': '#ffffff',
+        '--font-family': 'system-ui, sans-serif',
+      },
+
+      onOpen: function () {
+        addLog('onOpen — formulaire ouvert', 'info');
+      },
+      onClose: function () {
+        addLog('onClose — formulaire fermé');
+      },
+      onSurveyComplete: function (data) {
+        addLog('onSurveyComplete — soumission reçue', 'success');
+        // Déclencher une action post-soumission (analytics, redirect…)
+      },
+    };
+
+    // Load SurveySparrow popup SDK
+    (function (t, e, s, n) {
+      var o, a;
+      t.SparrowLauncher ||
+        ((t.SparrowConfig = t.sparrowConfig || {}),
+        (o = e.createElement(s)),
+        (a = e.getElementsByTagName(s)[0]),
+        (o.async = !0),
+        (o.src = 'https://YOUR_DOMAIN.surveysparrow.com/app/js/full-widget.js'),
+        (o.onload = function () {
+          addLog('SDK chargé — en attente du clic', 'info');
+          bindButtons();
+        }),
+        (o.onerror = function () {
+          addLog('⚠️ Erreur SDK — vérifiez YOUR_DOMAIN / YOUR_TOKEN');
+        }),
+        a.parentNode.insertBefore(o, a));
+    })(window, document, 'script');
+
+    function bindButtons() {
+      // Popup centré
+      document.getElementById('btn-popup').addEventListener('click', function () {
+        addLog('Ouverture mode popup…', 'info');
+        if (window.SparrowLauncher) SparrowLauncher.open({ mode: 'popup' });
+      });
+
+      document.getElementById('btn-popup-2').addEventListener('click', function () {
+        addLog('Ouverture mode popup (CTA 2)…', 'info');
+        if (window.SparrowLauncher) SparrowLauncher.open({ mode: 'popup' });
+      });
+
+      // Side tab (panneau latéral)
+      document.getElementById('btn-sidetab').addEventListener('click', function () {
+        addLog('Ouverture mode sidetab…', 'info');
+        if (window.SparrowLauncher) SparrowLauncher.open({ mode: 'sidetab' });
+      });
+    }
+  </script>
+
+</body>
+</html>
