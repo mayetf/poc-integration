@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git init *)",
+      "Bash(git -C \"/Users/franck/Documents/Working files/Visual-code/poc-integration\" branch -m master main)"
+    ]
+  }
+}
