@@ -135,20 +135,19 @@ router.get('/events/:id/check-registration', async (req, res) => {
 
   try {
     const { data } = await onomiClient.get(`/workspace/${req.params.id}/global/docs/person/${personId}`);
-    // Log the entire raw person object to identify the deactivation field
-    console.log(`[SpotMe] person ${personId} raw:`, JSON.stringify(data));
+    // fp_status === 'active' = registered; anything else (cancelled, etc.) = not registered
+    const registered = data.fp_status === 'active';
+    console.log(`[SpotMe] person ${personId} → fp_status=${data.fp_status} registered=${registered}`);
     res.json({
-      registered: true,
-      login_url: data.login_url ?? null,
+      registered,
+      login_url: registered ? (data.login_url ?? null) : null,
       person: {
         id: data._id,
         fname: data.fname,
         lname: data.lname,
         email: data.email,
-        attendance_status: data.attendance_status,
+        fp_status: data.fp_status,
         is_activated: data.is_activated,
-        status: data.status,
-        is_active: data.is_active,
       },
     });
   } catch (err) {
