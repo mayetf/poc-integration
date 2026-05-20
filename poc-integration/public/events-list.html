@@ -116,6 +116,26 @@
 
     .back { color: #0057b7; text-decoration: none; font-size: .9rem; }
     .back:hover { text-decoration: underline; }
+
+    /* ── User selector bar ── */
+    .user-bar {
+      background: #fff8e1; border-bottom: 1px solid #ffe082;
+      padding: 0 40px;
+    }
+    .user-bar-inner {
+      max-width: 1000px; margin: 0 auto; height: 44px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .user-bar-label { font-size: .8rem; color: #7a5c00; font-weight: 600; white-space: nowrap; }
+    .user-tabs { display: flex; gap: 8px; }
+    .user-tab {
+      padding: 4px 14px; border-radius: 20px; font-size: .82rem; font-weight: 600;
+      border: 1.5px solid #ccc; background: #fff; color: #555; cursor: pointer;
+      transition: all .15s;
+    }
+    .user-tab.active { background: #0f3460; color: #fff; border-color: #0f3460; }
+    .user-tab:hover:not(.active) { border-color: #0f3460; color: #0f3460; }
+    .user-bar-detail { font-size: .78rem; color: #999; margin-left: 4px; }
   </style>
 </head>
 <body>
@@ -127,6 +147,15 @@
       <a href="/events-list.html">Événements</a>
     </nav>
   </header>
+
+  <!-- User selector bar -->
+  <div class="user-bar">
+    <div class="user-bar-inner">
+      <span class="user-bar-label">👤 Simuler en tant que :</span>
+      <div class="user-tabs" id="user-tabs"></div>
+      <span class="user-bar-detail" id="user-bar-detail"></span>
+    </div>
+  </div>
 
   <div class="hero">
     <h1>Nos événements</h1>
@@ -179,6 +208,32 @@
   </div>
 
   <script>
+    // ── User selector ──────────────────────────────────────────────────────────
+    const USERS = [
+      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
+      { fname: 'Franck2', lname: 'MAYET2', email: 'franck.mayet+2@gmail.com', uuid: '87654321' },
+    ];
+
+    function getCurrentUserIdx() {
+      return parseInt(sessionStorage.getItem('selected_user') ?? '0');
+    }
+    function getCurrentUser() { return USERS[getCurrentUserIdx()]; }
+    function selectUser(idx) {
+      sessionStorage.setItem('selected_user', idx);
+      renderUserBar();
+    }
+    function renderUserBar() {
+      const idx  = getCurrentUserIdx();
+      const user = USERS[idx];
+      document.getElementById('user-tabs').innerHTML = USERS.map((u, i) =>
+        `<button class="user-tab ${i === idx ? 'active' : ''}" onclick="selectUser(${i})">
+          ${u.fname} ${u.lname}
+        </button>`
+      ).join('');
+      document.getElementById('user-bar-detail').textContent = `(${user.email} · UUID ${user.uuid})`;
+    }
+    renderUserBar();
+
     function formatDate(iso) {
       if (!iso) return '—';
       const d = new Date(iso);

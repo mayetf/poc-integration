@@ -176,6 +176,36 @@
 
     .back-link { color: #0057b7; text-decoration: none; font-size: .88rem; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 24px; }
     .back-link:hover { text-decoration: underline; }
+
+    /* ── User selector bar ── */
+    .user-bar {
+      background: #fff8e1; border-bottom: 1px solid #ffe082;
+      padding: 0 40px;
+    }
+    .user-bar-inner {
+      max-width: 860px; margin: 0 auto; height: 44px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .user-bar-label { font-size: .8rem; color: #7a5c00; font-weight: 600; white-space: nowrap; }
+    .user-tabs { display: flex; gap: 8px; }
+    .user-tab {
+      padding: 4px 14px; border-radius: 20px; font-size: .82rem; font-weight: 600;
+      border: 1.5px solid #ccc; background: #fff; color: #555; cursor: pointer;
+      transition: all .15s;
+    }
+    .user-tab.active { background: #0f3460; color: #fff; border-color: #0f3460; }
+    .user-tab:hover:not(.active) { border-color: #0f3460; color: #0f3460; }
+    .user-bar-detail { font-size: .78rem; color: #999; }
+
+    /* ── Registration status card ── */
+    .reg-status {
+      padding: 10px 12px; border-radius: 7px; font-size: .84rem; line-height: 1.5;
+      margin-top: 4px;
+    }
+    .reg-status.checking { background: #f5f5f5; color: #888; }
+    .reg-status.registered { background: #e8f8f0; color: #1a7a4a; }
+    .reg-status.not-registered { background: #fff0f0; color: #c0392b; }
+    .reg-status a { color: #0057b7; font-size: .8rem; display: block; margin-top: 4px; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -187,6 +217,15 @@
       <a href="/events-list.html">Événements</a>
     </nav>
   </header>
+
+  <!-- User selector bar -->
+  <div class="user-bar">
+    <div class="user-bar-inner">
+      <span class="user-bar-label">👤 Simuler en tant que :</span>
+      <div class="user-tabs" id="user-tabs"></div>
+      <span class="user-bar-detail" id="user-bar-detail"></span>
+    </div>
+  </div>
 
   <!-- Hero (populated by JS) -->
   <div class="event-hero" id="event-hero">
@@ -251,15 +290,12 @@
         </div>
       </div>
 
-      <!-- Check registration by email -->
+      <!-- Registration status for current user -->
       <div class="card">
-        <h2>Déjà inscrit ?</h2>
-        <div class="form-group">
-          <label for="check-email">Vérifier mon inscription</label>
-          <input type="email" id="check-email" placeholder="mon@email.com">
+        <h2 id="reg-status-title">Statut d'inscription</h2>
+        <div class="reg-status checking" id="reg-status-box">
+          <em>Vérification en cours…</em>
         </div>
-        <button class="btn btn-register" style="padding:10px" id="btn-check">Vérifier</button>
-        <div id="check-result" style="margin-top:10px;font-size:.85rem;display:none"></div>
       </div>
     </div>
   </div>
@@ -273,15 +309,15 @@
         <h2>S'inscrire à l'événement</h2>
         <p class="modal-subtitle" id="modal-event-title"></p>
 
-        <div class="form-row">
-          <div class="form-group"><label>Prénom *</label><input id="f-first" placeholder="Marie" required></div>
-          <div class="form-group"><label>Nom *</label><input id="f-last" placeholder="Dupont" required></div>
+        <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:7px;padding:10px 12px;margin-bottom:14px;font-size:.8rem;color:#7a5c00">
+          👤 Inscription au nom de l'utilisateur simulé. Champs pré-remplis.
         </div>
-        <div class="form-group"><label>Email *</label><input type="email" id="f-email" placeholder="marie@entreprise.com" required></div>
+
         <div class="form-row">
-          <div class="form-group"><label>Entreprise</label><input id="f-company" placeholder="Acme Corp"></div>
-          <div class="form-group"><label>Fonction</label><input id="f-job" placeholder="Directeur Marketing"></div>
+          <div class="form-group"><label>Prénom *</label><input id="f-first" required></div>
+          <div class="form-group"><label>Nom *</label><input id="f-last" required></div>
         </div>
+        <div class="form-group"><label>Email *</label><input type="email" id="f-email" required></div>
 
         <div class="form-error" id="form-error"></div>
         <button class="btn-submit" id="btn-submit">S'inscrire</button>
@@ -306,6 +342,42 @@
   </div>
 
   <script>
+    // ── Simulated users ────────────────────────────────────────────────────────
+    const USERS = [
+      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
+      { fname: 'Franck2', lname: 'MAYET2', email: 'franck.mayet+2@gmail.com', uuid: '87654321' },
+    ];
+
+    function getCurrentUserIdx() {
+      return parseInt(sessionStorage.getItem('selected_user') ?? '0');
+    }
+    function getCurrentUser() { return USERS[getCurrentUserIdx()]; }
+
+    function selectUser(idx) {
+      sessionStorage.setItem('selected_user', idx);
+      renderUserBar();
+      // Re-check registration status for the new user if an event is loaded
+      if (currentEvent) {
+        prefillForm();
+        checkRegistrationStatus(currentEvent.id);
+        renderCTA(currentEvent);
+      }
+    }
+
+    function renderUserBar() {
+      const idx  = getCurrentUserIdx();
+      const user = USERS[idx];
+      document.getElementById('user-tabs').innerHTML = USERS.map((u, i) =>
+        `<button class="user-tab ${i === idx ? 'active' : ''}" onclick="selectUser(${i})">
+          ${u.fname} ${u.lname}
+        </button>`
+      ).join('');
+      document.getElementById('user-bar-detail').textContent =
+        `(${user.email} · UUID ${user.uuid})`;
+    }
+
+    renderUserBar();
+
     // ── Helpers ────────────────────────────────────────────────────────────────
     function formatDate(iso) {
       if (!iso) return '—';
@@ -319,17 +391,67 @@
       return new URLSearchParams(window.location.search);
     }
 
-    // ── State ──────────────────────────────────────────────────────────────────
+    // ── State (per-user, per-event localStorage) ───────────────────────────────
     let currentEvent = null;
-    const LS_KEY     = 'spotme_registered'; // localStorage key for registered events
 
-    function getRegistered() {
-      try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
+    function lsKey(eventId) {
+      return `spotme_reg_${getCurrentUser().uuid}_${eventId}`;
     }
-    function setRegistered(eventId, data) {
-      const map = getRegistered();
-      map[eventId] = data;
-      localStorage.setItem(LS_KEY, JSON.stringify(map));
+    function getRegisteredData(eventId) {
+      try { return JSON.parse(localStorage.getItem(lsKey(eventId)) || 'null'); } catch { return null; }
+    }
+    function setRegisteredData(eventId, data) {
+      localStorage.setItem(lsKey(eventId), JSON.stringify(data));
+    }
+
+    // ── Pre-fill form with current user ───────────────────────────────────────
+    function prefillForm() {
+      const u = getCurrentUser();
+      document.getElementById('f-first').value = u.fname;
+      document.getElementById('f-last').value  = u.lname;
+      document.getElementById('f-email').value = u.email;
+    }
+
+    // ── Check registration status via API ──────────────────────────────────────
+    async function checkRegistrationStatus(eventId) {
+      const user   = getCurrentUser();
+      const box    = document.getElementById('reg-status-box');
+      const title  = document.getElementById('reg-status-title');
+      title.textContent = `Statut — ${user.fname} ${user.lname}`;
+      box.className = 'reg-status checking';
+      box.innerHTML = '<em>Vérification en cours…</em>';
+
+      // Check localStorage cache first
+      const cached = getRegisteredData(eventId);
+      if (cached) {
+        showRegisteredStatus(eventId, cached.login_url);
+        return;
+      }
+
+      try {
+        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?user_uuid=${encodeURIComponent(user.uuid)}`);
+        const data = await res.json();
+
+        if (data.registered) {
+          setRegisteredData(eventId, { login_url: data.login_url });
+          showRegisteredStatus(eventId, data.login_url);
+          renderCTA(currentEvent);
+        } else {
+          box.className = 'reg-status not-registered';
+          box.innerHTML = `❌ <strong>${user.fname} ${user.lname}</strong> n'est pas encore inscrit(e).`;
+        }
+      } catch {
+        box.className = 'reg-status not-registered';
+        box.innerHTML = 'Impossible de vérifier le statut.';
+      }
+    }
+
+    function showRegisteredStatus(eventId, loginUrl) {
+      const box = document.getElementById('reg-status-box');
+      const user = getCurrentUser();
+      box.className = 'reg-status registered';
+      box.innerHTML = `✅ <strong>${user.fname} ${user.lname}</strong> est inscrit(e).`
+        + (loginUrl ? `<a href="${loginUrl}" target="_blank" rel="noopener">🔗 Lien personnel → rejoindre l'événement</a>` : '');
     }
 
     // ── Render event ───────────────────────────────────────────────────────────
@@ -348,16 +470,14 @@
       titleEl.style.display = 'block';
 
       // Hero meta
-      const metaItems = [
+      document.getElementById('hero-meta').innerHTML = [
         event.start_date ? `<div class="hero-meta-item">📅 ${formatDate(event.start_date)}</div>` : '',
         event.location   ? `<div class="hero-meta-item">📍 ${event.location}</div>` : '',
-      ];
-      document.getElementById('hero-meta').innerHTML = metaItems.join('');
+      ].join('');
 
       // Description
       const desc = event.description || '<em style="color:#999">Aucune description disponible.</em>';
-      document.getElementById('event-description').innerHTML =
-        desc.replace(/\n/g, '<br>');
+      document.getElementById('event-description').innerHTML = desc.replace(/\n/g, '<br>');
 
       // Info grid
       document.getElementById('event-meta').innerHTML = `
@@ -385,33 +505,33 @@
       document.getElementById('status-badge-wrap').innerHTML =
         `<span class="status-badge ${cls}">${label}</span>`;
 
-      // CTA
+      // CTA + form prefill + auto registration check
+      prefillForm();
       renderCTA(event);
+      checkRegistrationStatus(event.id);
     }
 
     function renderCTA(event) {
-      const cta   = document.getElementById('cta-box');
-      const reg   = getRegistered();
-      const myReg = reg[event.id];
+      const cta     = document.getElementById('cta-box');
+      const cached  = getRegisteredData(event.id);
 
       if (event.status === 'ended') {
         cta.innerHTML = `<button class="btn btn-ended" disabled>Événement terminé</button>`;
         return;
       }
 
-      if (myReg) {
-        // Already registered (from localStorage)
+      if (cached) {
         cta.innerHTML = `
           <button class="btn btn-registered" disabled>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Déjà inscrit
           </button>`;
-        if (myReg.personal_link) {
+        if (cached.login_url) {
           const plBox = document.getElementById('personal-link-box');
           plBox.style.display = 'block';
           const linkEl = document.getElementById('personal-link-url');
-          linkEl.href = myReg.personal_link;
-          linkEl.textContent = myReg.personal_link;
+          linkEl.href = cached.login_url;
+          linkEl.textContent = cached.login_url;
         }
         if (event.status === 'live' && event.live_url) {
           cta.insertAdjacentHTML('beforeend',
@@ -448,6 +568,7 @@
 
     // ── Modal ──────────────────────────────────────────────────────────────────
     function openModal() {
+      prefillForm();
       document.getElementById('modal-event-title').textContent = currentEvent?.title ?? '';
       document.getElementById('modal-form').classList.remove('hide');
       document.getElementById('modal-success').classList.remove('show');
@@ -466,15 +587,13 @@
 
     // ── Submit registration ────────────────────────────────────────────────────
     document.getElementById('btn-submit').addEventListener('click', async () => {
-      const eventId    = getParams().get('id');
-      const first_name = document.getElementById('f-first').value.trim();
-      const last_name  = document.getElementById('f-last').value.trim();
-      const email      = document.getElementById('f-email').value.trim();
-      const company    = document.getElementById('f-company').value.trim();
-      const job_title  = document.getElementById('f-job').value.trim();
-      const errEl      = document.getElementById('form-error');
+      const eventId = getParams().get('id');
+      const fname   = document.getElementById('f-first').value.trim();
+      const lname   = document.getElementById('f-last').value.trim();
+      const email   = document.getElementById('f-email').value.trim();
+      const errEl   = document.getElementById('form-error');
 
-      if (!first_name || !last_name || !email) {
+      if (!fname || !lname || !email) {
         errEl.textContent = 'Veuillez remplir les champs obligatoires.';
         errEl.classList.add('show');
         return;
@@ -485,87 +604,55 @@
       btn.disabled = true;
       btn.textContent = 'Inscription en cours…';
 
+      const user_uuid = getCurrentUser().uuid;
+
       try {
         const res = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ first_name, last_name, email, company, job_title }),
+          body: JSON.stringify({ fname, lname, email, user_uuid }),
         });
         const data = await res.json();
 
         if (!res.ok) {
-          if (res.status === 409) {
-            errEl.textContent = 'Cette adresse email est déjà inscrite à cet événement.';
-          } else {
-            errEl.textContent = data.error ?? 'Une erreur est survenue.';
-          }
+          errEl.textContent = data.error ?? 'Une erreur est survenue.';
           errEl.classList.add('show');
           btn.disabled = false;
           btn.textContent = 'S\'inscrire';
           return;
         }
 
-        // Save to localStorage so the button shows "Déjà inscrit" on next visit
-        setRegistered(eventId, { email, personal_link: data.personal_link ?? null });
+        // Cache registration per user
+        const login_url = data.login_url ?? null;
+        setRegisteredData(eventId, { login_url });
 
         // Show success
         document.getElementById('modal-form').classList.add('hide');
         const successEl = document.getElementById('modal-success');
         successEl.classList.add('show');
 
-        if (data.personal_link) {
+        if (login_url) {
           document.getElementById('success-link-box').style.display = 'block';
           const linkEl = document.getElementById('success-link-url');
-          linkEl.href = data.personal_link;
-          linkEl.textContent = data.personal_link;
+          linkEl.href = login_url;
+          linkEl.textContent = login_url;
 
           const joinBtn = document.getElementById('btn-join-live');
-          joinBtn.href = data.personal_link;
+          joinBtn.href = login_url;
           joinBtn.style.display = 'inline-flex';
         }
 
-        // Update CTA in background
-        setTimeout(() => renderCTA(currentEvent), 500);
+        // Update CTA and status
+        setTimeout(() => {
+          renderCTA(currentEvent);
+          showRegisteredStatus(eventId, login_url);
+        }, 400);
 
       } catch (err) {
         errEl.textContent = 'Erreur réseau. Vérifiez votre connexion.';
         errEl.classList.add('show');
         btn.disabled = false;
         btn.textContent = 'S\'inscrire';
-      }
-    });
-
-    // ── Check registration ─────────────────────────────────────────────────────
-    document.getElementById('btn-check').addEventListener('click', async () => {
-      const eventId = getParams().get('id');
-      const email   = document.getElementById('check-email').value.trim();
-      const result  = document.getElementById('check-result');
-
-      if (!email) { result.style.display='none'; return; }
-
-      result.style.display = 'block';
-      result.innerHTML = '<em style="color:#888">Vérification…</em>';
-
-      try {
-        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?email=${encodeURIComponent(email)}`);
-        const data = await res.json();
-
-        if (data.registered) {
-          result.innerHTML = '✅ <strong>Vous êtes inscrit(e)</strong> à cet événement.';
-          result.style.color = '#1a7a4a';
-          if (data.personal_link) {
-            result.innerHTML += `<br><a href="${data.personal_link}" target="_blank" rel="noopener" style="color:#0057b7;font-size:.8rem">→ Votre lien de participation</a>`;
-          }
-          // Persist in localStorage
-          setRegistered(eventId, { email, personal_link: data.personal_link });
-          renderCTA(currentEvent);
-        } else {
-          result.innerHTML = '❌ Aucune inscription trouvée pour cet email.';
-          result.style.color = '#c0392b';
-        }
-      } catch {
-        result.innerHTML = 'Erreur lors de la vérification.';
-        result.style.color = '#c0392b';
       }
     });
 

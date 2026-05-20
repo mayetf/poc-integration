@@ -122,56 +122,90 @@ router.get('/events/:id', async (req, res) => {
 });
 
 /**
- * GET /api/onomi/events/:id/check-registration?email=...
- * Vérification d'inscription — stockée côté client (localStorage).
- * L'API SpotMe v2 ne propose pas d'endpoint de vérification par email.
- * Ce endpoint retourne toujours { registered: false } (vérification côté frontend via localStorage).
+ * GET /api/onomi/events/:id/check-registration?user_uuid=...
+ * Vérifie si un utilisateur est déjà inscrit à un événement.
+ * SpotMe v2 confirmé: GET /workspace/{eid}/global/docs/person/{ws_id}_{user_uuid}
+ * Returns: { registered: bool, login_url: string|null, person: {...}|null }
  */
 router.get('/events/:id/check-registration', async (req, res) => {
-  // Endpoint maintenu pour compatibilité frontend
-  // La vérification réelle est gérée via localStorage dans le navigateur
-  res.json({ registered: false, note: 'Check via localStorage on client side' });
+  const { user_uuid } = req.query;
+  if (!user_uuid) return res.status(400).json({ error: 'user_uuid query param required' });
+
+  const personId = `${req.params.id}_${user_uuid}`;
+
+  try {
+    const { data } = await onomiClient.get(`/workspace/${req.params.id}/global/docs/person/${personId}`);
+    res.json({
+      registered: true,
+      login_url: data.login_url ?? null,
+      person: {
+        id: data._id,
+        fname: data.fname,
+        lname: data.lname,
+        email: data.email,
+        attendance_status: data.attendance_status,
+        is_activated: data.is_activated,
+      },
+    });
+  } catch (err) {
+    if (err.response?.status === 404) {
+      return res.json({ registered: false, login_url: null, person: null });
+    }
+    handleError(res, err, `GET /events/${req.params.id}/check-registration`);
+  }
 });
 
 /**
  * POST /api/onomi/events/:id/register
- * Inscription à un événement.
+ * Crée une "personne" dans SpotMe et retourne le magic link.
+ * SpotMe v2 confirmé: POST /workspace/{eid}/global/docs/person
  *
- * NOTE SpotMe v2: l'API ne supporte pas POST /workspace/{id}/people (404).
- * Ce endpoint valide les données et retourne le lien d'inscription SpotMe.
- * L'inscription réelle se fait via la page publique SpotMe (cms_url).
+ * Body: { fname, lname, email, user_uuid }
+ * _id format: {workspace_id}_{user_uuid}
  *
- * Body: { first_name, last_name, email, company?, job_title? }
+ * Réponses SpotMe:
+ *   - status "created"   → login_url présent (magic link)
+ *   - status "unchanged" → utilisateur déjà inscrit, faire un GET pour le magic link
+ *   - status "updated"   → login_url présent
  */
 router.post('/events/:id/register', async (req, res) => {
-  const { first_name, last_name, email, company, job_title } = req.body;
+  const { fname, lname, email, user_uuid } = req.body;
 
-  if (!first_name || !last_name || !email) {
-    return res.status(400).json({ error: 'first_name, last_name and email are required' });
+  if (!fname || !lname || !email || !user_uuid) {
+    return res.status(400).json({ error: 'fname, lname, email and user_uuid are required' });
   }
 
+  const workspaceId = req.params.id;
+  const personId    = `${workspaceId}_${user_uuid}`;
+
   try {
-    // Récupère les détails du workspace pour obtenir le lien de registration
-    const { data } = await onomiClient.get(`/workspace/${req.params.id}`);
-    const workspace = data;
+    const { data } = await onomiClient.post(
+      `/workspace/${workspaceId}/global/docs/person`,
+      { fname, lname, email, _id: personId }
+    );
 
-    // Construit le lien public SpotMe
-    // Format: https://eu.backstage.spotme.com/event/{id} (admin)
-    // Le lien public app est: https://app.spotme.com/{container_app_id}
-    const registration_url =
-      workspace.cms_url ??
-      `https://app.spotme.com/${workspace.container_app_id}`;
+    console.log(`[SpotMe] Person ${data.status} → ${personId} (${email})`);
 
-    console.log(`[SpotMe] Registration request for ${email} → event ${req.params.id} (${workspace.name})`);
+    // Si "unchanged", SpotMe ne renvoie pas le login_url — on le récupère via GET
+    if (data.status === 'unchanged') {
+      const { data: person } = await onomiClient.get(
+        `/workspace/${workspaceId}/global/docs/person/${personId}`
+      );
+      return res.json({
+        success: true,
+        status: 'already_registered',
+        login_url: person.login_url ?? null,
+        person_id: personId,
+      });
+    }
 
     res.json({
       success: true,
-      message: 'Registration validated. Redirect user to SpotMe registration page.',
-      registration_url,
-      workspace_name: workspace.name,
-      // Pre-filled URL hint (SpotMe may support query params for pre-fill)
-      registration_url_prefilled: `${registration_url}?email=${encodeURIComponent(email)}&firstname=${encodeURIComponent(first_name)}&lastname=${encodeURIComponent(last_name)}`,
+      status: data.status,        // "created" | "updated"
+      login_url: data.login_url ?? null,
+      person_id: data.id,
     });
+
   } catch (err) {
     handleError(res, err, `POST /events/${req.params.id}/register`);
   }
