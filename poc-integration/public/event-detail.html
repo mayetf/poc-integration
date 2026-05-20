@@ -413,6 +413,8 @@
     }
 
     // ── Check registration status via API ──────────────────────────────────────
+    // Always calls the API — localStorage is only used to store the login_url,
+    // never as a substitute for the actual registration check.
     async function checkRegistrationStatus(eventId) {
       const user   = getCurrentUser();
       const box    = document.getElementById('reg-status-box');
@@ -421,28 +423,27 @@
       box.className = 'reg-status checking';
       box.innerHTML = '<em>Vérification en cours…</em>';
 
-      // Check localStorage cache first
-      const cached = getRegisteredData(eventId);
-      if (cached) {
-        showRegisteredStatus(eventId, cached.login_url);
-        return;
-      }
-
       try {
         const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?user_uuid=${encodeURIComponent(user.uuid)}`);
         const data = await res.json();
 
         if (data.registered) {
-          setRegisteredData(eventId, { login_url: data.login_url });
-          showRegisteredStatus(eventId, data.login_url);
-          renderCTA(currentEvent);
+          // Prefer login_url from API; fall back to cached one if API doesn't return it
+          const cached    = getRegisteredData(eventId);
+          const login_url = data.login_url ?? cached?.login_url ?? null;
+          setRegisteredData(eventId, { login_url });
+          showRegisteredStatus(eventId, login_url);
         } else {
+          // Clear stale cache so the CTA reflects reality
+          localStorage.removeItem(lsKey(eventId));
           box.className = 'reg-status not-registered';
           box.innerHTML = `❌ <strong>${user.fname} ${user.lname}</strong> n'est pas encore inscrit(e).`;
         }
+        // Always re-render the CTA based on fresh API data
+        renderCTA(currentEvent);
       } catch {
         box.className = 'reg-status not-registered';
-        box.innerHTML = 'Impossible de vérifier le statut.';
+        box.innerHTML = 'Impossible de vérifier le statut (erreur réseau).';
       }
     }
 
