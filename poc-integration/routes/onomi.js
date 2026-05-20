@@ -135,11 +135,18 @@ router.get('/events/:id/check-registration', async (req, res) => {
 
   try {
     const { data } = await onomiClient.get(`/workspace/${req.params.id}/global/docs/person/${personId}`);
-    // A person record can exist but be deactivated — treat that as not registered
-    const registered = data.is_activated !== false;
+    // Log full person object so we can identify the correct field for deactivation
+    console.log(`[SpotMe] person ${personId}:`, JSON.stringify({
+      is_activated:       data.is_activated,
+      attendance_status:  data.attendance_status,
+      status:             data.status,
+      is_active:          data.is_active,
+      disabled:           data.disabled,
+      deleted:            data.deleted,
+    }));
     res.json({
-      registered,
-      login_url: registered ? (data.login_url ?? null) : null,
+      registered: true,
+      login_url: data.login_url ?? null,
       person: {
         id: data._id,
         fname: data.fname,
@@ -147,6 +154,8 @@ router.get('/events/:id/check-registration', async (req, res) => {
         email: data.email,
         attendance_status: data.attendance_status,
         is_activated: data.is_activated,
+        status: data.status,
+        is_active: data.is_active,
       },
     });
   } catch (err) {
