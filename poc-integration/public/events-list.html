@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Événements — Onomi / SpotMe</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f6fa; color: #1a1a2e; }
+
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 0 40px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header .logo { font-weight: 700; font-size: 1.1rem; }
+    header nav a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: .9rem; }
+    header nav a:hover { color: #fff; }
+
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      color: #fff; padding: 56px 40px 40px; text-align: center;
+    }
+    .hero h1 { font-size: 2rem; margin-bottom: 10px; }
+    .hero p { color: rgba(255,255,255,.7); max-width: 520px; margin: 0 auto; }
+
+    .container { max-width: 1000px; margin: 40px auto; padding: 0 24px 64px; }
+
+    /* ── Loading / Error / Empty ── */
+    .state-box { text-align: center; padding: 64px 24px; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid #e0e0e0;
+      border-top-color: #0f3460; border-radius: 50%;
+      animation: spin .8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .state-box.error p { color: #c0392b; }
+    .state-box p { color: #666; }
+    .state-box small { display: block; margin-top: 6px; font-size: .8rem; color: #999; font-family: monospace; }
+
+    /* ── Event table ── */
+    .events-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .events-header h2 { font-size: 1.1rem; color: #333; }
+    .count-badge {
+      background: #e8f4ff; color: #0057b7;
+      border-radius: 20px; padding: 3px 12px; font-size: .82rem; font-weight: 600;
+    }
+
+    .events-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .events-table thead th {
+      background: #fff; padding: 12px 16px;
+      text-align: left; font-size: .78rem; text-transform: uppercase;
+      letter-spacing: .06em; color: #888; font-weight: 600;
+      border-bottom: 2px solid #eee;
+    }
+    .events-table thead th:first-child { border-radius: 8px 0 0 0; }
+    .events-table thead th:last-child  { border-radius: 0 8px 0 0; }
+
+    .events-table tbody tr {
+      background: #fff; transition: background .1s;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .events-table tbody tr:hover { background: #f8fbff; }
+    .events-table tbody tr:last-child td:first-child { border-radius: 0 0 0 8px; }
+    .events-table tbody tr:last-child td:last-child  { border-radius: 0 0 8px 0; }
+
+    .events-table td { padding: 14px 16px; font-size: .9rem; vertical-align: middle; }
+
+    /* Title cell — clickable */
+    .event-title-link {
+      color: #0f3460; font-weight: 600; text-decoration: none;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .event-title-link:hover { text-decoration: underline; }
+    .event-title-link svg { flex-shrink: 0; opacity: .4; }
+
+    /* Cover thumbnail */
+    .cover-thumb {
+      width: 48px; height: 36px; border-radius: 4px; object-fit: cover;
+      background: linear-gradient(135deg, #0f3460, #16213e);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .9rem; color: rgba(255,255,255,.5); flex-shrink: 0;
+    }
+    .cover-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
+
+    /* Status badge */
+    .badge {
+      display: inline-block; padding: 2px 10px; border-radius: 20px;
+      font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      white-space: nowrap;
+    }
+    .badge-live      { background: #fde8ec; color: #c0392b; animation: pulse 1.5s infinite; }
+    .badge-scheduled { background: #e8f4ff; color: #0057b7; }
+    .badge-ended     { background: #f0f0f0; color: #999; }
+    .badge-draft     { background: #fff8e1; color: #b8860b; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+    /* Date cell */
+    .date-cell { font-size: .85rem; color: #444; white-space: nowrap; }
+    .date-cell .time { color: #888; font-size: .78rem; }
+
+    /* Location */
+    .location-cell { font-size: .82rem; color: #666; }
+
+    /* Action */
+    .btn-detail {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; background: #0f3460; color: #fff;
+      border-radius: 6px; text-decoration: none; font-size: .82rem; font-weight: 600;
+      white-space: nowrap; transition: opacity .15s;
+    }
+    .btn-detail:hover { opacity: .85; }
+
+    .back { color: #0057b7; text-decoration: none; font-size: .9rem; }
+    .back:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="logo">MyBrand</span>
+    <nav>
+      <a href="/">Hub</a>
+      <a href="/events-list.html">Événements</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Nos événements</h1>
+    <p>Tous les événements de l'organisation, synchronisés en temps réel depuis Onomi.</p>
+  </div>
+
+  <div class="container">
+
+    <!-- Loading -->
+    <div class="state-box" id="state-loading">
+      <div class="spinner"></div>
+      <p>Chargement des événements depuis Onomi…</p>
+    </div>
+
+    <!-- Error -->
+    <div class="state-box error" id="state-error" style="display:none">
+      <p>⚠️ Impossible de charger les événements.</p>
+      <small id="error-detail"></small>
+    </div>
+
+    <!-- Empty -->
+    <div class="state-box" id="state-empty" style="display:none">
+      <p>Aucun événement disponible pour le moment.</p>
+    </div>
+
+    <!-- Table -->
+    <div id="state-table" style="display:none">
+      <div class="events-header">
+        <h2>Liste des événements</h2>
+        <span class="count-badge" id="count-badge"></span>
+      </div>
+      <table class="events-table">
+        <thead>
+          <tr>
+            <th style="width:52px"></th>
+            <th>Titre</th>
+            <th>Statut</th>
+            <th>Date de début</th>
+            <th>Lieu</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="events-tbody"></tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:40px">
+      <a class="back" href="/">← Retour au hub</a>
+    </div>
+  </div>
+
+  <script>
+    function formatDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return {
+        date: d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      };
+    }
+
+    function statusBadge(status) {
+      const map = {
+        live:      ['badge-live',      '🔴 En direct'],
+        scheduled: ['badge-scheduled', 'À venir'],
+        published: ['badge-scheduled', 'À venir'],
+        ended:     ['badge-ended',     'Terminé'],
+        draft:     ['badge-draft',     'Brouillon'],
+      };
+      const [cls, label] = map[status] ?? ['badge-draft', status ?? '—'];
+      return `<span class="badge ${cls}">${label}</span>`;
+    }
+
+    function renderRow(event) {
+      const dt   = formatDate(event.start_date);
+      const thumb = event.cover_image
+        ? `<div class="cover-thumb"><img src="${event.cover_image}" alt="" loading="lazy"></div>`
+        : `<div class="cover-thumb">📡</div>`;
+
+      return `
+        <tr>
+          <td>${thumb}</td>
+          <td>
+            <a class="event-title-link" href="/event-detail.html?id=${encodeURIComponent(event.id)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              ${event.title}
+            </a>
+          </td>
+          <td>${statusBadge(event.status)}</td>
+          <td class="date-cell">
+            ${dt.date}<br><span class="time">${dt.time}</span>
+          </td>
+          <td class="location-cell">${event.location ?? '—'}</td>
+          <td>
+            <a class="btn-detail" href="/event-detail.html?id=${encodeURIComponent(event.id)}">
+              Voir
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </a>
+          </td>
+        </tr>`;
+    }
+
+    async function loadEvents() {
+      try {
+        const res  = await fetch('/api/onomi/events');
+        if (!res.ok) throw new Error(`HTTP ${res.status} — ${await res.text()}`);
+        const { events } = await res.json();
+
+        document.getElementById('state-loading').style.display = 'none';
+
+        if (!events || events.length === 0) {
+          document.getElementById('state-empty').style.display = 'block';
+          return;
+        }
+
+        document.getElementById('count-badge').textContent = `${events.length} événement${events.length > 1 ? 's' : ''}`;
+        document.getElementById('events-tbody').innerHTML = events.map(renderRow).join('');
+        document.getElementById('state-table').style.display = 'block';
+
+      } catch (err) {
+        document.getElementById('state-loading').style.display = 'none';
+        document.getElementById('state-error').style.display   = 'block';
+        document.getElementById('error-detail').textContent    = err.message;
+      }
+    }
+
+    loadEvents();
+  </script>
+</body>
+</html>

@@ -63,8 +63,13 @@ app.get('/', (req, res) => {
     </a>
     <a class="card" href="/poc2-webinar.html">
       <span class="badge onomi">Onomi</span>
-      <h2>POC 2 — Webinar Onomi</h2>
+      <h2>POC 2 — Webinar Onomi (v1)</h2>
       <p>Liste dynamique des événements, inscription en ligne, lien live personnalisé.</p>
+    </a>
+    <a class="card" href="/events-list.html">
+      <span class="badge onomi">Onomi</span>
+      <h2>POC 2B — Liste des événements</h2>
+      <p>Tous les événements de l'organisation en tableau. Titre cliquable → page détail.</p>
     </a>
   </div>
 

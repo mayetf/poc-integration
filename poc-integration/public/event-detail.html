@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Détail événement — Onomi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f6fa; color: #1a1a2e; }
+
+    header {
+      background: #1a1a2e; color: #fff;
+      padding: 0 40px; height: 60px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header .logo { font-weight: 700; font-size: 1.1rem; }
+    header nav a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: .9rem; }
+
+    /* ── Hero / cover ── */
+    .event-hero {
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      min-height: 220px; position: relative; overflow: hidden;
+      display: flex; align-items: flex-end;
+    }
+    .event-hero-bg {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      opacity: .35; transition: opacity .3s;
+    }
+    .event-hero-content {
+      position: relative; padding: 32px 40px 28px;
+      max-width: 860px; width: 100%;
+    }
+    .event-hero-content h1 {
+      color: #fff; font-size: 1.8rem; line-height: 1.25;
+      margin-bottom: 12px; text-shadow: 0 2px 8px rgba(0,0,0,.4);
+    }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 16px; }
+    .hero-meta-item {
+      display: flex; align-items: center; gap: 6px;
+      color: rgba(255,255,255,.8); font-size: .88rem;
+    }
+
+    /* ── Layout ── */
+    .layout { max-width: 860px; margin: 32px auto; padding: 0 24px 64px; display: grid; grid-template-columns: 1fr 300px; gap: 24px; }
+    @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
+
+    /* ── Card ── */
+    .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,.06); margin-bottom: 20px; }
+    .card h2 { font-size: 1rem; margin-bottom: 16px; color: #333; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
+
+    .description { font-size: .92rem; line-height: 1.7; color: #444; }
+    .description p + p { margin-top: 12px; }
+
+    /* Meta grid */
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .meta-item label { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: #999; font-weight: 600; margin-bottom: 4px; }
+    .meta-item span { font-size: .9rem; color: #222; }
+
+    /* Tags */
+    .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag { background: #f0f4ff; color: #0057b7; border-radius: 20px; padding: 3px 12px; font-size: .78rem; font-weight: 600; }
+
+    /* ── Sidebar ── */
+    .sidebar { position: sticky; top: 24px; align-self: start; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px;
+      font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      margin-bottom: 16px;
+    }
+    .badge-live      { background: #fde8ec; color: #c0392b; }
+    .badge-scheduled { background: #e8f4ff; color: #0057b7; }
+    .badge-ended     { background: #f0f0f0; color: #999; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+    .badge-live      { animation: pulse 1.5s infinite; }
+
+    /* Registration CTA */
+    .cta-box { margin-top: 4px; }
+
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 13px; border-radius: 8px;
+      font-size: .95rem; font-weight: 600; cursor: pointer; border: none;
+      text-decoration: none; transition: opacity .15s, transform .1s;
+    }
+    .btn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-register    { background: #0f3460; color: #fff; }
+    .btn-registered  { background: #e8f8f0; color: #1a7a4a; pointer-events: none; border: 2px solid #a8dfc0; }
+    .btn-live        { background: #c0392b; color: #fff; }
+    .btn-ended       { background: #eee; color: #999; }
+
+    .btn-join-live {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 11px; border-radius: 8px; margin-top: 10px;
+      background: #c0392b; color: #fff; text-decoration: none;
+      font-size: .9rem; font-weight: 600; transition: opacity .15s;
+    }
+    .btn-join-live:hover { opacity: .88; }
+
+    .personal-link-box {
+      background: #f0f9ff; border: 1.5px solid #0057b7;
+      border-radius: 8px; padding: 12px; margin-top: 12px;
+    }
+    .personal-link-box p { font-size: .78rem; color: #0057b7; font-weight: 600; margin-bottom: 6px; }
+    .personal-link-box a { font-size: .82rem; color: #0057b7; word-break: break-all; }
+
+    /* ── Registration modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      backdrop-filter: blur(4px); z-index: 1000;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 14px; padding: 32px;
+      max-width: 440px; width: 100%; position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .modal h2 { font-size: 1.15rem; margin-bottom: 4px; }
+    .modal-subtitle { color: #666; font-size: .88rem; margin-bottom: 24px; }
+    .modal-close {
+      position: absolute; top: 16px; right: 16px;
+      background: none; border: none; cursor: pointer;
+      color: #888; font-size: 1.2rem;
+    }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: .84rem; font-weight: 600; margin-bottom: 5px; color: #333; }
+    input {
+      width: 100%; padding: 10px 14px; border: 1.5px solid #ddd;
+      border-radius: 7px; font-size: .9rem; outline: none; transition: border-color .15s;
+    }
+    input:focus { border-color: #0f3460; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .btn-submit {
+      width: 100%; padding: 13px; background: #0f3460; color: #fff;
+      border: none; border-radius: 7px; font-size: .95rem; font-weight: 600;
+      cursor: pointer; margin-top: 8px; transition: opacity .15s;
+    }
+    .btn-submit:hover { opacity: .88; }
+    .btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+    .form-error { color: #c0392b; font-size: .83rem; margin-top: 10px; display: none; }
+    .form-error.show { display: block; }
+
+    /* Success in modal */
+    .modal-success { display: none; text-align: center; padding: 8px 0; }
+    .modal-success.show { display: block; }
+    .modal-form.hide { display: none; }
+    .success-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .modal-success h3 { margin-bottom: 8px; }
+    .modal-success p { color: #555; font-size: .9rem; margin-bottom: 20px; }
+    .success-link-box {
+      background: #f0f9ff; border: 1.5px solid #0057b7;
+      border-radius: 8px; padding: 14px; text-align: left; margin-bottom: 16px;
+    }
+    .success-link-box p { font-size: .8rem; color: #0057b7; font-weight: 600; margin-bottom: 6px; }
+    .success-link-box a { font-size: .82rem; color: #0057b7; word-break: break-all; }
+    .btn-join {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 24px; background: #c0392b; color: #fff;
+      border-radius: 7px; font-weight: 600; text-decoration: none; font-size: .92rem;
+    }
+
+    /* ── Loading skeleton ── */
+    .skeleton {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    .back-link { color: #0057b7; text-decoration: none; font-size: .88rem; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 24px; }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="logo">MyBrand</span>
+    <nav>
+      <a href="/">Hub</a>
+      <a href="/events-list.html">Événements</a>
+    </nav>
+  </header>
+
+  <!-- Hero (populated by JS) -->
+  <div class="event-hero" id="event-hero">
+    <div class="event-hero-bg" id="hero-bg"></div>
+    <div class="event-hero-content">
+      <div class="skeleton" id="hero-skeleton" style="height:36px;width:60%;margin-bottom:16px"></div>
+      <h1 id="hero-title" style="display:none"></h1>
+      <div class="hero-meta" id="hero-meta"></div>
+    </div>
+  </div>
+
+  <!-- Layout -->
+  <div class="layout">
+
+    <!-- Main content -->
+    <div>
+      <a class="back-link" href="/events-list.html">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Retour à la liste
+      </a>
+
+      <!-- Description -->
+      <div class="card">
+        <h2>Description</h2>
+        <div class="description" id="event-description">
+          <div class="skeleton" style="height:16px;margin-bottom:10px"></div>
+          <div class="skeleton" style="height:16px;width:85%;margin-bottom:10px"></div>
+          <div class="skeleton" style="height:16px;width:70%"></div>
+        </div>
+      </div>
+
+      <!-- Details -->
+      <div class="card">
+        <h2>Informations</h2>
+        <div class="meta-grid" id="event-meta">
+          <div class="meta-item"><label>Date début</label><span class="skeleton" style="height:18px;width:120px;display:block"></span></div>
+          <div class="meta-item"><label>Date fin</label><span class="skeleton" style="height:18px;width:120px;display:block"></span></div>
+          <div class="meta-item"><label>Lieu</label><span class="skeleton" style="height:18px;width:100px;display:block"></span></div>
+          <div class="meta-item"><label>Inscrits</label><span class="skeleton" style="height:18px;width:60px;display:block"></span></div>
+        </div>
+      </div>
+
+      <!-- Tags (hidden until populated) -->
+      <div class="card" id="tags-card" style="display:none">
+        <h2>Tags</h2>
+        <div class="tags" id="event-tags"></div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="card">
+        <div id="status-badge-wrap"></div>
+
+        <div class="cta-box" id="cta-box">
+          <div class="skeleton" style="height:46px;border-radius:8px"></div>
+        </div>
+
+        <div id="personal-link-box" style="display:none" class="personal-link-box">
+          <p>🔗 Votre lien personnel :</p>
+          <a id="personal-link-url" href="#" target="_blank" rel="noopener"></a>
+        </div>
+      </div>
+
+      <!-- Check registration by email -->
+      <div class="card">
+        <h2>Déjà inscrit ?</h2>
+        <div class="form-group">
+          <label for="check-email">Vérifier mon inscription</label>
+          <input type="email" id="check-email" placeholder="mon@email.com">
+        </div>
+        <button class="btn btn-register" style="padding:10px" id="btn-check">Vérifier</button>
+        <div id="check-result" style="margin-top:10px;font-size:.85rem;display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registration modal -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal">
+      <button class="modal-close" id="modal-close">✕</button>
+
+      <div class="modal-form" id="modal-form">
+        <h2>S'inscrire à l'événement</h2>
+        <p class="modal-subtitle" id="modal-event-title"></p>
+
+        <div class="form-row">
+          <div class="form-group"><label>Prénom *</label><input id="f-first" placeholder="Marie" required></div>
+          <div class="form-group"><label>Nom *</label><input id="f-last" placeholder="Dupont" required></div>
+        </div>
+        <div class="form-group"><label>Email *</label><input type="email" id="f-email" placeholder="marie@entreprise.com" required></div>
+        <div class="form-row">
+          <div class="form-group"><label>Entreprise</label><input id="f-company" placeholder="Acme Corp"></div>
+          <div class="form-group"><label>Fonction</label><input id="f-job" placeholder="Directeur Marketing"></div>
+        </div>
+
+        <div class="form-error" id="form-error"></div>
+        <button class="btn-submit" id="btn-submit">S'inscrire</button>
+      </div>
+
+      <div class="modal-success" id="modal-success">
+        <div class="success-icon">✅</div>
+        <h3>Inscription confirmée !</h3>
+        <p>Un email de confirmation vous a été envoyé par Onomi.</p>
+
+        <div class="success-link-box" id="success-link-box" style="display:none">
+          <p>🔴 Votre lien personnel pour rejoindre l'événement :</p>
+          <a id="success-link-url" href="#" target="_blank" rel="noopener"></a>
+        </div>
+
+        <a class="btn-join" id="btn-join-live" href="#" target="_blank" rel="noopener" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Rejoindre le stream Onomi
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function formatDate(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleDateString('fr-FR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    }
+
+    function getParams() {
+      return new URLSearchParams(window.location.search);
+    }
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let currentEvent = null;
+    const LS_KEY     = 'spotme_registered'; // localStorage key for registered events
+
+    function getRegistered() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { return {}; }
+    }
+    function setRegistered(eventId, data) {
+      const map = getRegistered();
+      map[eventId] = data;
+      localStorage.setItem(LS_KEY, JSON.stringify(map));
+    }
+
+    // ── Render event ───────────────────────────────────────────────────────────
+    function renderEvent(event) {
+      currentEvent = event;
+      document.title = event.title + ' — Onomi';
+
+      // Hero
+      if (event.cover_image) {
+        document.getElementById('hero-bg').style.backgroundImage = `url(${event.cover_image})`;
+        document.getElementById('hero-bg').style.opacity = '.5';
+      }
+      document.getElementById('hero-skeleton').style.display = 'none';
+      const titleEl = document.getElementById('hero-title');
+      titleEl.textContent = event.title;
+      titleEl.style.display = 'block';
+
+      // Hero meta
+      const metaItems = [
+        event.start_date ? `<div class="hero-meta-item">📅 ${formatDate(event.start_date)}</div>` : '',
+        event.location   ? `<div class="hero-meta-item">📍 ${event.location}</div>` : '',
+      ];
+      document.getElementById('hero-meta').innerHTML = metaItems.join('');
+
+      // Description
+      const desc = event.description || '<em style="color:#999">Aucune description disponible.</em>';
+      document.getElementById('event-description').innerHTML =
+        desc.replace(/\n/g, '<br>');
+
+      // Info grid
+      document.getElementById('event-meta').innerHTML = `
+        <div class="meta-item"><label>Date début</label><span>${formatDate(event.start_date)}</span></div>
+        <div class="meta-item"><label>Date fin</label><span>${formatDate(event.end_date)}</span></div>
+        <div class="meta-item"><label>Lieu</label><span>${event.location ?? '—'}</span></div>
+        <div class="meta-item"><label>Inscrits</label><span>${event.attendees_count ?? '—'}</span></div>
+        ${event.external_url ? `<div class="meta-item" style="grid-column:1/-1"><label>Lien externe</label><a href="${event.external_url}" target="_blank" rel="noopener" style="color:#0057b7">${event.external_url}</a></div>` : ''}
+      `;
+
+      // Tags
+      if (event.tags && event.tags.length > 0) {
+        document.getElementById('event-tags').innerHTML = event.tags.map(t => `<span class="tag">${t}</span>`).join('');
+        document.getElementById('tags-card').style.display = 'block';
+      }
+
+      // Status badge
+      const statusMap = {
+        live:      ['badge-live',      '🔴 En direct'],
+        scheduled: ['badge-scheduled', '📅 À venir'],
+        published: ['badge-scheduled', '📅 À venir'],
+        ended:     ['badge-ended',     '✓ Terminé'],
+      };
+      const [cls, label] = statusMap[event.status] ?? ['badge-scheduled', event.status ?? '—'];
+      document.getElementById('status-badge-wrap').innerHTML =
+        `<span class="status-badge ${cls}">${label}</span>`;
+
+      // CTA
+      renderCTA(event);
+    }
+
+    function renderCTA(event) {
+      const cta   = document.getElementById('cta-box');
+      const reg   = getRegistered();
+      const myReg = reg[event.id];
+
+      if (event.status === 'ended') {
+        cta.innerHTML = `<button class="btn btn-ended" disabled>Événement terminé</button>`;
+        return;
+      }
+
+      if (myReg) {
+        // Already registered (from localStorage)
+        cta.innerHTML = `
+          <button class="btn btn-registered" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Déjà inscrit
+          </button>`;
+        if (myReg.personal_link) {
+          const plBox = document.getElementById('personal-link-box');
+          plBox.style.display = 'block';
+          const linkEl = document.getElementById('personal-link-url');
+          linkEl.href = myReg.personal_link;
+          linkEl.textContent = myReg.personal_link;
+        }
+        if (event.status === 'live' && event.live_url) {
+          cta.insertAdjacentHTML('beforeend',
+            `<a class="btn-join-live" href="${event.live_url}" target="_blank" rel="noopener">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Rejoindre le stream
+            </a>`);
+        }
+        return;
+      }
+
+      if (event.status === 'live') {
+        if (event.live_url) {
+          cta.innerHTML = `
+            <a class="btn btn-live" href="${event.live_url}" target="_blank" rel="noopener">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Rejoindre maintenant
+            </a>`;
+        } else {
+          cta.innerHTML = `<button class="btn btn-live" id="btn-open-modal">S'inscrire pour le lien live</button>`;
+          document.getElementById('btn-open-modal').addEventListener('click', openModal);
+        }
+        return;
+      }
+
+      if (!event.registration_open) {
+        cta.innerHTML = `<button class="btn btn-ended" disabled>Inscriptions fermées</button>`;
+        return;
+      }
+
+      cta.innerHTML = `<button class="btn btn-register" id="btn-open-modal">S'inscrire</button>`;
+      document.getElementById('btn-open-modal').addEventListener('click', openModal);
+    }
+
+    // ── Modal ──────────────────────────────────────────────────────────────────
+    function openModal() {
+      document.getElementById('modal-event-title').textContent = currentEvent?.title ?? '';
+      document.getElementById('modal-form').classList.remove('hide');
+      document.getElementById('modal-success').classList.remove('show');
+      document.getElementById('form-error').classList.remove('show');
+      document.getElementById('btn-submit').disabled = false;
+      document.getElementById('btn-submit').textContent = 'S\'inscrire';
+      document.getElementById('modal').classList.add('open');
+    }
+
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('modal').classList.remove('open');
+    });
+    document.getElementById('modal').addEventListener('click', e => {
+      if (e.target === document.getElementById('modal')) document.getElementById('modal').classList.remove('open');
+    });
+
+    // ── Submit registration ────────────────────────────────────────────────────
+    document.getElementById('btn-submit').addEventListener('click', async () => {
+      const eventId    = getParams().get('id');
+      const first_name = document.getElementById('f-first').value.trim();
+      const last_name  = document.getElementById('f-last').value.trim();
+      const email      = document.getElementById('f-email').value.trim();
+      const company    = document.getElementById('f-company').value.trim();
+      const job_title  = document.getElementById('f-job').value.trim();
+      const errEl      = document.getElementById('form-error');
+
+      if (!first_name || !last_name || !email) {
+        errEl.textContent = 'Veuillez remplir les champs obligatoires.';
+        errEl.classList.add('show');
+        return;
+      }
+
+      errEl.classList.remove('show');
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.textContent = 'Inscription en cours…';
+
+      try {
+        const res = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ first_name, last_name, email, company, job_title }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (res.status === 409) {
+            errEl.textContent = 'Cette adresse email est déjà inscrite à cet événement.';
+          } else {
+            errEl.textContent = data.error ?? 'Une erreur est survenue.';
+          }
+          errEl.classList.add('show');
+          btn.disabled = false;
+          btn.textContent = 'S\'inscrire';
+          return;
+        }
+
+        // Save to localStorage so the button shows "Déjà inscrit" on next visit
+        setRegistered(eventId, { email, personal_link: data.personal_link ?? null });
+
+        // Show success
+        document.getElementById('modal-form').classList.add('hide');
+        const successEl = document.getElementById('modal-success');
+        successEl.classList.add('show');
+
+        if (data.personal_link) {
+          document.getElementById('success-link-box').style.display = 'block';
+          const linkEl = document.getElementById('success-link-url');
+          linkEl.href = data.personal_link;
+          linkEl.textContent = data.personal_link;
+
+          const joinBtn = document.getElementById('btn-join-live');
+          joinBtn.href = data.personal_link;
+          joinBtn.style.display = 'inline-flex';
+        }
+
+        // Update CTA in background
+        setTimeout(() => renderCTA(currentEvent), 500);
+
+      } catch (err) {
+        errEl.textContent = 'Erreur réseau. Vérifiez votre connexion.';
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'S\'inscrire';
+      }
+    });
+
+    // ── Check registration ─────────────────────────────────────────────────────
+    document.getElementById('btn-check').addEventListener('click', async () => {
+      const eventId = getParams().get('id');
+      const email   = document.getElementById('check-email').value.trim();
+      const result  = document.getElementById('check-result');
+
+      if (!email) { result.style.display='none'; return; }
+
+      result.style.display = 'block';
+      result.innerHTML = '<em style="color:#888">Vérification…</em>';
+
+      try {
+        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?email=${encodeURIComponent(email)}`);
+        const data = await res.json();
+
+        if (data.registered) {
+          result.innerHTML = '✅ <strong>Vous êtes inscrit(e)</strong> à cet événement.';
+          result.style.color = '#1a7a4a';
+          if (data.personal_link) {
+            result.innerHTML += `<br><a href="${data.personal_link}" target="_blank" rel="noopener" style="color:#0057b7;font-size:.8rem">→ Votre lien de participation</a>`;
+          }
+          // Persist in localStorage
+          setRegistered(eventId, { email, personal_link: data.personal_link });
+          renderCTA(currentEvent);
+        } else {
+          result.innerHTML = '❌ Aucune inscription trouvée pour cet email.';
+          result.style.color = '#c0392b';
+        }
+      } catch {
+        result.innerHTML = 'Erreur lors de la vérification.';
+        result.style.color = '#c0392b';
+      }
+    });
+
+    // ── Load event ─────────────────────────────────────────────────────────────
+    async function loadEvent() {
+      const id = getParams().get('id');
+      if (!id) {
+        window.location.href = '/events-list.html';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/onomi/events/${encodeURIComponent(id)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const event = await res.json();
+        renderEvent(event);
+      } catch (err) {
+        document.getElementById('event-hero').innerHTML =
+          `<div style="padding:32px;color:#fff"><h1>Événement introuvable</h1><p style="color:rgba(255,255,255,.7)">${err.message}</p></div>`;
+        document.querySelector('.layout').innerHTML =
+          `<div style="text-align:center;padding:40px"><a href="/events-list.html" style="color:#0057b7">← Retour à la liste</a></div>`;
+      }
+    }
+
+    loadEvent();
+  </script>
+</body>
+</html>
