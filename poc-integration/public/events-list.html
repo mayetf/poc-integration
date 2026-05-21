@@ -228,7 +228,7 @@
   <div class="poc-bar">
     <div class="poc-bar-inner">
       <span class="poc-label">⚗ POC —</span>
-      <span style="color:#7a5c00">Simuler en tant que :</span>
+      <span style="color:#7a5c00">Simulate as:</span>
       <div class="poc-tabs" id="user-tabs"></div>
       <span class="poc-detail" id="user-bar-detail"></span>
     </div>
@@ -407,13 +407,13 @@
       return {
         month: d.toLocaleDateString('en-US', { month: 'long' }).toLowerCase(),
         day:   d.getDate(),
-        time:  d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        time:  d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       };
     }
 
     function parseEndTime(iso) {
       if (!iso) return '';
-      return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
 
     // ── Render card ────────────────────────────────────────────────────────────

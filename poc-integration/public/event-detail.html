@@ -296,7 +296,7 @@
   <div class="poc-bar">
     <div class="poc-bar-inner">
       <span class="poc-label">⚗ POC —</span>
-      <span style="color:#7a5c00">Simuler en tant que :</span>
+      <span style="color:#7a5c00">Simulate as:</span>
       <div class="poc-tabs" id="user-tabs"></div>
       <span class="poc-detail" id="user-bar-detail"></span>
     </div>
@@ -543,12 +543,6 @@
         hour: '2-digit', minute: '2-digit',
       });
     }
-    function formatDateShort(iso) {
-      if (!iso) return '—';
-      const d = new Date(iso);
-      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    }
     function getParams() { return new URLSearchParams(window.location.search); }
 
     // ── State ──────────────────────────────────────────────────────────────────
@@ -645,10 +639,10 @@
       // Metadata with ■ bullets
       const startStr = event.start_date
         ? new Date(event.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-          + ' ' + new Date(event.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          + ' ' + new Date(event.start_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         : '—';
       const endStr = event.end_date
-        ? new Date(event.end_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        ? new Date(event.end_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         : '';
       const timeRange = endStr ? `${startStr} 〜 ${endStr}` : startStr;
 
@@ -846,7 +840,6 @@
           const btn = document.getElementById('banner-access-btn');
           btn.href = data.login_url; btn.style.display = 'inline-flex';
         }
-        console.log(`[auto-register] ${data.status}`);
       } catch (err) {
         console.warn('[auto-register] network error:', err.message);
       } finally {
