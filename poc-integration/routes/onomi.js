@@ -271,7 +271,7 @@ router.post('/generate-registration-link', (req, res) => {
   }
 
   const token   = signToken({ eventId, uuid, fname, lname, email });
-  const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
   const url     = `${baseUrl}/event-detail.html?id=${encodeURIComponent(eventId)}&reg=${encodeURIComponent(token)}`;
 
   res.json({ url, token });
