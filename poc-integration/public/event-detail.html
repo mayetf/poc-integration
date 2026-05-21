@@ -656,13 +656,51 @@
       }
     });
 
+    // ── Auto-register from email link ──────────────────────────────────────────
+    // Called when the page URL contains ?reg={token} (from a promo email CTA).
+    // Registers the user silently, caches the result, then cleans the URL.
+    async function autoRegisterFromToken(eventId, token) {
+      try {
+        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/auto-register`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ token }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.warn('[auto-register] failed:', data.error);
+          return; // Continue loading the page normally — user can register manually
+        }
+
+        // Cache the result so renderCTA / checkRegistrationStatus pick it up
+        if (data.login_url) {
+          setRegisteredData(eventId, { login_url: data.login_url });
+        }
+        console.log(`[auto-register] ${data.status}`);
+      } catch (err) {
+        console.warn('[auto-register] network error:', err.message);
+      } finally {
+        // Always clean the token from the URL to avoid reuse on refresh
+        const clean = new URL(window.location.href);
+        clean.searchParams.delete('reg');
+        window.history.replaceState({}, '', clean.toString());
+      }
+    }
+
     // ── Load event ─────────────────────────────────────────────────────────────
     async function loadEvent() {
-      const id = getParams().get('id');
+      const params = getParams();
+      const id     = params.get('id');
+      const reg    = params.get('reg');
+
       if (!id) {
         window.location.href = '/events-list.html';
         return;
       }
+
+      // If a registration token is present (email link), process it first
+      if (reg) await autoRegisterFromToken(id, reg);
 
       try {
         const res = await fetch(`/api/onomi/events/${encodeURIComponent(id)}`);

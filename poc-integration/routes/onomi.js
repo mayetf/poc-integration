@@ -1,9 +1,44 @@
 const express = require('express');
-const axios = require('axios');
-const router = express.Router();
+const axios   = require('axios');
+const crypto  = require('crypto');
+const router  = express.Router();
 
-const API_KEY = process.env.ONOMI_API_KEY;
-const ORG_ID  = process.env.ONOMI_ORG_ID;
+const API_KEY     = process.env.ONOMI_API_KEY;
+const ORG_ID      = process.env.ONOMI_ORG_ID;
+const LINK_SECRET = process.env.REGISTRATION_LINK_SECRET;
+
+// ─── Secure registration token helpers ───────────────────────────────────────
+// Token format: base64url(payload_json).base64url(hmac_sha256(secret, payload_json))
+// Payload: { eventId, uuid, fname, lname, email, exp }
+// Never exposes the UUID in plain text in the URL.
+
+function b64url(buf) {
+  return Buffer.from(buf).toString('base64url');
+}
+
+function signToken(payload) {
+  const raw = JSON.stringify(payload);
+  const sig  = crypto.createHmac('sha256', LINK_SECRET).update(raw).digest();
+  return `${b64url(raw)}.${b64url(sig)}`;
+}
+
+function verifyToken(token) {
+  if (!LINK_SECRET) throw new Error('REGISTRATION_LINK_SECRET not set');
+  const [payloadB64, sigB64] = token.split('.');
+  if (!payloadB64 || !sigB64) throw new Error('Malformed token');
+
+  const raw         = Buffer.from(payloadB64, 'base64url').toString();
+  const expectedSig = crypto.createHmac('sha256', LINK_SECRET).update(raw).digest();
+
+  // Constant-time comparison to prevent timing attacks
+  if (!crypto.timingSafeEqual(Buffer.from(sigB64, 'base64url'), expectedSig)) {
+    throw new Error('Invalid token signature');
+  }
+
+  const payload = JSON.parse(raw);
+  if (Date.now() > payload.exp) throw new Error('Token expired');
+  return payload;
+}
 
 // ─── SpotMe API v2 — Endpoints confirmés ──────────────────────────────────────
 // Base URL : https://api.spotme.com/api/v2
@@ -211,6 +246,96 @@ router.post('/events/:id/register', async (req, res) => {
 
   } catch (err) {
     handleError(res, err, `POST /events/${req.params.id}/register`);
+  }
+});
+
+/**
+ * POST /api/onomi/generate-registration-link
+ * Génère un lien d'inscription signé pour un utilisateur et un événement.
+ * À appeler côté serveur lors de l'envoi de l'email promotionnel.
+ *
+ * Body: { eventId, uuid, fname, lname, email, expiresInDays? }
+ * Returns: { url, token, expires_at }
+ *
+ * Sécurité:
+ *  - Le UUID n'est jamais exposé en clair dans l'URL
+ *  - Le token est signé HMAC-SHA256 avec REGISTRATION_LINK_SECRET
+ *  - Le token expire (30 jours par défaut)
+ */
+router.post('/generate-registration-link', (req, res) => {
+  if (!LINK_SECRET) {
+    return res.status(500).json({ error: 'REGISTRATION_LINK_SECRET not configured' });
+  }
+
+  const { eventId, uuid, fname, lname, email, expiresInDays = 30 } = req.body;
+  if (!eventId || !uuid || !fname || !lname || !email) {
+    return res.status(400).json({ error: 'eventId, uuid, fname, lname, email are required' });
+  }
+
+  const exp   = Date.now() + expiresInDays * 24 * 60 * 60 * 1000;
+  const token = signToken({ eventId, uuid, fname, lname, email, exp });
+
+  const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
+  const url     = `${baseUrl}/event-detail.html?id=${encodeURIComponent(eventId)}&reg=${encodeURIComponent(token)}`;
+
+  res.json({ url, token, expires_at: new Date(exp).toISOString() });
+});
+
+/**
+ * POST /api/onomi/events/:id/auto-register
+ * Vérifie un token signé et inscrit automatiquement l'utilisateur.
+ * Appelé par le frontend quand le lien email est cliqué.
+ *
+ * Body: { token }
+ * Returns: { success, status, login_url, already_registered }
+ */
+router.post('/events/:id/auto-register', async (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ error: 'token is required' });
+
+  let payload;
+  try {
+    payload = verifyToken(token);
+  } catch (err) {
+    return res.status(401).json({ error: err.message });
+  }
+
+  // Extra check: token eventId must match URL param
+  if (payload.eventId !== req.params.id) {
+    return res.status(401).json({ error: 'Token / event mismatch' });
+  }
+
+  const { uuid: user_uuid, fname, lname, email } = payload;
+  const workspaceId = req.params.id;
+  const personId    = `${workspaceId}_${user_uuid}`;
+
+  try {
+    const { data } = await onomiClient.post(
+      `/workspace/${workspaceId}/global/docs/person`,
+      { fname, lname, email, _id: personId }
+    );
+
+    console.log(`[SpotMe] auto-register ${data.status} → ${personId} (${email})`);
+
+    if (data.status === 'unchanged') {
+      const { data: person } = await onomiClient.get(
+        `/workspace/${workspaceId}/global/docs/person/${personId}`
+      );
+      return res.json({
+        success: true,
+        status: 'already_registered',
+        login_url: person.login_url ?? null,
+      });
+    }
+
+    res.json({
+      success: true,
+      status: data.status,
+      login_url: data.login_url ?? null,
+    });
+
+  } catch (err) {
+    handleError(res, err, `POST /events/${req.params.id}/auto-register`);
   }
 });
 
