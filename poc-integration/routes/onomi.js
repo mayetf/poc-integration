@@ -35,9 +35,7 @@ function verifyToken(token) {
     throw new Error('Invalid token signature');
   }
 
-  const payload = JSON.parse(raw);
-  if (Date.now() > payload.exp) throw new Error('Token expired');
-  return payload;
+  return JSON.parse(raw);
 }
 
 // ─── SpotMe API v2 — Endpoints confirmés ──────────────────────────────────────
@@ -267,18 +265,16 @@ router.post('/generate-registration-link', (req, res) => {
     return res.status(500).json({ error: 'REGISTRATION_LINK_SECRET not configured' });
   }
 
-  const { eventId, uuid, fname, lname, email, expiresInDays = 30 } = req.body;
+  const { eventId, uuid, fname, lname, email } = req.body;
   if (!eventId || !uuid || !fname || !lname || !email) {
     return res.status(400).json({ error: 'eventId, uuid, fname, lname, email are required' });
   }
 
-  const exp   = Date.now() + expiresInDays * 24 * 60 * 60 * 1000;
-  const token = signToken({ eventId, uuid, fname, lname, email, exp });
-
+  const token   = signToken({ eventId, uuid, fname, lname, email });
   const baseUrl = process.env.BASE_URL ?? 'http://localhost:3000';
   const url     = `${baseUrl}/event-detail.html?id=${encodeURIComponent(eventId)}&reg=${encodeURIComponent(token)}`;
 
-  res.json({ url, token, expires_at: new Date(exp).toISOString() });
+  res.json({ url, token });
 });
 
 /**
