@@ -1,292 +1,461 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Événements — Onomi / SpotMe</title>
+  <title>Seminars/Lectures — Brain Connect</title>
   <style>
+    :root {
+      --red:        #8B1A1A;
+      --red-hover:  #711515;
+      --red-light:  #FBEAEA;
+      --red-footer: #6E1414;
+      --text:       #1A1A1A;
+      --text-muted: #666;
+      --border:     #DEDEDE;
+      --bg:         #F5F5F5;
+      --white:      #FFFFFF;
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f6fa; color: #1a1a2e; }
+    body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+    a { color: inherit; text-decoration: none; }
 
-    header {
-      background: #1a1a2e; color: #fff;
-      padding: 0 40px; height: 60px;
+    /* ── POC dev bar ─────────────────────────────────────────────────────────── */
+    .poc-bar {
+      background: #fff8e1; border-bottom: 1px solid #ffe082;
+      padding: 0 32px; font-size: 11px;
+    }
+    .poc-bar-inner {
+      max-width: 1200px; margin: 0 auto; height: 36px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .poc-label { color: #7a5c00; font-weight: 700; letter-spacing: .04em; }
+    .poc-tabs  { display: flex; gap: 6px; }
+    .poc-tab {
+      padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+      border: 1.5px solid #ccc; background: var(--white); color: #555; cursor: pointer;
+      transition: all .15s;
+    }
+    .poc-tab.active { background: var(--red); color: var(--white); border-color: var(--red); }
+    .poc-tab:hover:not(.active) { border-color: var(--red); color: var(--red); }
+    .poc-detail { color: #aaa; margin-left: 4px; }
+
+    /* ── Header ──────────────────────────────────────────────────────────────── */
+    .site-header {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .header-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 32px;
+      height: 60px; display: flex; align-items: center; gap: 24px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      font-weight: 800; font-size: 1.1rem; color: var(--red); white-space: nowrap;
+    }
+    .logo svg { flex-shrink: 0; }
+    .logo span { font-weight: 400; font-size: .75rem; color: var(--text-muted); margin-left: 2px; }
+    .site-nav { display: flex; align-items: center; gap: 0; flex: 1; }
+    .site-nav a {
+      padding: 0 14px; height: 60px; display: flex; align-items: center;
+      font-size: .82rem; color: var(--text); white-space: nowrap;
+      border-bottom: 3px solid transparent; transition: border-color .15s;
+    }
+    .site-nav a:hover, .site-nav a.active { border-bottom-color: var(--red); color: var(--red); }
+    .header-actions { display: flex; gap: 8px; margin-left: auto; }
+    .btn-login {
+      padding: 6px 16px; border: 1.5px solid var(--text); border-radius: 3px;
+      font-size: .8rem; font-weight: 600; cursor: pointer; background: var(--white);
+      color: var(--text); transition: all .15s;
+    }
+    .btn-login:hover { border-color: var(--red); color: var(--red); }
+    .btn-newmember {
+      padding: 6px 16px; border: none; border-radius: 3px;
+      font-size: .8rem; font-weight: 600; cursor: pointer;
+      background: var(--red); color: var(--white); transition: background .15s;
+    }
+    .btn-newmember:hover { background: var(--red-hover); }
+
+    /* ── Page container ──────────────────────────────────────────────────────── */
+    .page-container { max-width: 1200px; margin: 0 auto; padding: 32px 32px 80px; }
+
+    /* ── Breadcrumb ──────────────────────────────────────────────────────────── */
+    .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-muted); margin-bottom: 20px; }
+    .breadcrumb a { color: var(--text-muted); }
+    .breadcrumb a:hover { color: var(--red); text-decoration: underline; }
+    .breadcrumb span { color: var(--text-muted); }
+
+    /* ── Page title ──────────────────────────────────────────────────────────── */
+    .page-title-area { margin-bottom: 24px; }
+    .page-title-area h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    .page-title-area .underline { width: 40px; height: 3px; background: var(--red); margin-bottom: 12px; }
+    .page-title-area p { font-size: .85rem; color: var(--text-muted); }
+    .page-title-area p a { color: var(--red); text-decoration: underline; }
+
+    /* ── Filters ─────────────────────────────────────────────────────────────── */
+    .filters {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .filter-select {
+      flex: 1; min-width: 200px;
+      border: none; border-bottom: 2px solid var(--red);
+      padding: 8px 4px; font-size: .85rem; color: var(--text);
+      background: transparent; appearance: none; cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238B1A1A' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 4px center;
+      padding-right: 24px;
+    }
+    .filter-select:focus { outline: none; }
+
+    /* ── List controls ───────────────────────────────────────────────────────── */
+    .list-controls {
       display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
     }
-    header .logo { font-weight: 700; font-size: 1.1rem; }
-    header nav a { color: rgba(255,255,255,.7); text-decoration: none; margin-left: 24px; font-size: .9rem; }
-    header nav a:hover { color: #fff; }
-
-    .hero {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
-      color: #fff; padding: 56px 40px 40px; text-align: center;
+    .btn-display-list {
+      padding: 6px 18px; border: 1.5px solid var(--text); border-radius: 2px;
+      font-size: .8rem; font-weight: 600; background: var(--white);
+      cursor: pointer; color: var(--text);
     }
-    .hero h1 { font-size: 2rem; margin-bottom: 10px; }
-    .hero p { color: rgba(255,255,255,.7); max-width: 520px; margin: 0 auto; }
+    .sort-label { font-size: .82rem; color: var(--text-muted); }
+    .sort-label strong { color: var(--red); }
 
-    .container { max-width: 1000px; margin: 40px auto; padding: 0 24px 64px; }
-
-    /* ── Loading / Error / Empty ── */
+    /* ── Loading / Error / Empty ─────────────────────────────────────────────── */
     .state-box { text-align: center; padding: 64px 24px; }
     .spinner {
-      width: 40px; height: 40px; border: 3px solid #e0e0e0;
-      border-top-color: #0f3460; border-radius: 50%;
+      width: 36px; height: 36px; border: 3px solid var(--border);
+      border-top-color: var(--red); border-radius: 50%;
       animation: spin .8s linear infinite; margin: 0 auto 16px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .state-box p { color: var(--text-muted); font-size: .9rem; }
     .state-box.error p { color: #c0392b; }
-    .state-box p { color: #666; }
-    .state-box small { display: block; margin-top: 6px; font-size: .8rem; color: #999; font-family: monospace; }
+    .state-box small { display: block; margin-top: 6px; font-size: .75rem; color: #aaa; font-family: monospace; }
 
-    /* ── Event table ── */
-    .events-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 20px;
+    /* ── Event card ──────────────────────────────────────────────────────────── */
+    .events-list { display: flex; flex-direction: column; gap: 0; }
+
+    .event-card {
+      background: var(--white); border: 1px solid var(--border); border-top: none;
+      display: flex; align-items: stretch; transition: background .1s;
     }
-    .events-header h2 { font-size: 1.1rem; color: #333; }
-    .count-badge {
-      background: #e8f4ff; color: #0057b7;
-      border-radius: 20px; padding: 3px 12px; font-size: .82rem; font-weight: 600;
+    .event-card:first-child { border-top: 1px solid var(--border); }
+    .event-card:hover { background: #fafafa; }
+
+    .event-card-date {
+      padding: 16px 20px; min-width: 140px; border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
     }
-
-    .events-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-    .events-table thead th {
-      background: #fff; padding: 12px 16px;
-      text-align: left; font-size: .78rem; text-transform: uppercase;
-      letter-spacing: .06em; color: #888; font-weight: 600;
-      border-bottom: 2px solid #eee;
-    }
-    .events-table thead th:first-child { border-radius: 8px 0 0 0; }
-    .events-table thead th:last-child  { border-radius: 0 8px 0 0; }
-
-    .events-table tbody tr {
-      background: #fff; transition: background .1s;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .events-table tbody tr:hover { background: #f8fbff; }
-    .events-table tbody tr:last-child td:first-child { border-radius: 0 0 0 8px; }
-    .events-table tbody tr:last-child td:last-child  { border-radius: 0 0 8px 0; }
-
-    .events-table td { padding: 14px 16px; font-size: .9rem; vertical-align: middle; }
-
-    /* Title cell — clickable */
-    .event-title-link {
-      color: #0f3460; font-weight: 600; text-decoration: none;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .event-title-link:hover { text-decoration: underline; }
-    .event-title-link svg { flex-shrink: 0; opacity: .4; }
-
-    /* Cover thumbnail */
-    .cover-thumb {
-      width: 48px; height: 36px; border-radius: 4px; object-fit: cover;
-      background: linear-gradient(135deg, #0f3460, #16213e);
-      display: flex; align-items: center; justify-content: center;
-      font-size: .9rem; color: rgba(255,255,255,.5); flex-shrink: 0;
-    }
-    .cover-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; }
-
-    /* Status badge */
-    .badge {
-      display: inline-block; padding: 2px 10px; border-radius: 20px;
-      font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    .event-type-badge {
+      display: inline-block; padding: 2px 10px; border: 1px solid var(--red);
+      color: var(--red); font-size: .72rem; font-weight: 700; border-radius: 2px;
       white-space: nowrap;
     }
-    .badge-live      { background: #fde8ec; color: #c0392b; animation: pulse 1.5s infinite; }
-    .badge-scheduled { background: #e8f4ff; color: #0057b7; }
-    .badge-ended     { background: #f0f0f0; color: #999; }
-    .badge-draft     { background: #fff8e1; color: #b8860b; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+    .date-block { display: flex; flex-direction: column; gap: 1px; }
+    .date-month { font-size: .78rem; color: var(--text-muted); text-transform: lowercase; }
+    .date-day   { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--text); }
+    .date-time  { font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
 
-    /* Date cell */
-    .date-cell { font-size: .85rem; color: #444; white-space: nowrap; }
-    .date-cell .time { color: #888; font-size: .78rem; }
-
-    /* Location */
-    .location-cell { font-size: .82rem; color: #666; }
-
-    /* Action */
-    .btn-detail {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 14px; background: #0f3460; color: #fff;
-      border-radius: 6px; text-decoration: none; font-size: .82rem; font-weight: 600;
-      white-space: nowrap; transition: opacity .15s;
+    .event-card-body {
+      flex: 1; padding: 16px 24px; display: flex; flex-direction: column; gap: 6px;
+      justify-content: center;
     }
-    .btn-detail:hover { opacity: .85; }
+    .event-card-body h3 { font-size: .95rem; font-weight: 700; color: var(--text); line-height: 1.4; }
+    .event-card-body h3 a:hover { color: var(--red); }
+    .event-performers { font-size: .8rem; color: var(--text-muted); }
 
-    .back { color: #0057b7; text-decoration: none; font-size: .9rem; }
-    .back:hover { text-decoration: underline; }
+    .event-card-actions {
+      padding: 16px 20px; display: flex; flex-direction: column;
+      gap: 8px; justify-content: center; align-items: stretch; min-width: 160px;
+    }
+    .btn-content {
+      padding: 8px 16px; border: 1.5px solid #999; border-radius: 2px;
+      font-size: .8rem; font-weight: 600; text-align: center; color: var(--text);
+      background: var(--white); transition: all .15s; cursor: pointer;
+    }
+    .btn-content:hover { border-color: var(--red); color: var(--red); }
+    .btn-prereg {
+      padding: 8px 16px; border: none; border-radius: 2px;
+      font-size: .8rem; font-weight: 700; text-align: center;
+      background: var(--red); color: var(--white); transition: background .15s; cursor: pointer;
+    }
+    .btn-prereg:hover { background: var(--red-hover); }
+    .btn-prereg.registered { background: #1a7a4a; }
+    .btn-prereg.ended { background: #aaa; cursor: default; }
 
-    /* ── User selector bar ── */
-    .user-bar {
-      background: #fff8e1; border-bottom: 1px solid #ffe082;
-      padding: 0 40px;
+    /* ── Footer ──────────────────────────────────────────────────────────────── */
+    .site-footer { background: var(--red-footer); color: rgba(255,255,255,.85); }
+    .footer-main {
+      max-width: 1200px; margin: 0 auto; padding: 40px 32px;
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px;
     }
-    .user-bar-inner {
-      max-width: 1000px; margin: 0 auto; height: 44px;
-      display: flex; align-items: center; gap: 16px;
+    .footer-brand { display: flex; flex-direction: column; gap: 12px; }
+    .footer-logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 1rem; color: var(--white); }
+    .footer-address { font-size: .75rem; line-height: 1.7; }
+    .footer-col h4 { font-size: .78rem; font-weight: 700; color: var(--white); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .06em; }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .footer-col ul li a { font-size: .75rem; color: rgba(255,255,255,.7); }
+    .footer-col ul li a:hover { color: var(--white); text-decoration: underline; }
+    .footer-social { display: flex; gap: 10px; margin-top: 8px; }
+    .footer-social a {
+      width: 30px; height: 30px; border: 1px solid rgba(255,255,255,.4); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,.7);
+      font-size: .8rem; transition: all .15s;
     }
-    .user-bar-label { font-size: .8rem; color: #7a5c00; font-weight: 600; white-space: nowrap; }
-    .user-tabs { display: flex; gap: 8px; }
-    .user-tab {
-      padding: 4px 14px; border-radius: 20px; font-size: .82rem; font-weight: 600;
-      border: 1.5px solid #ccc; background: #fff; color: #555; cursor: pointer;
-      transition: all .15s;
+    .footer-social a:hover { background: rgba(255,255,255,.15); color: var(--white); }
+    .footer-bottom {
+      border-top: 1px solid rgba(255,255,255,.15); padding: 16px 32px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: .72rem; color: rgba(255,255,255,.5); max-width: 1200px; margin: 0 auto;
     }
-    .user-tab.active { background: #0f3460; color: #fff; border-color: #0f3460; }
-    .user-tab:hover:not(.active) { border-color: #0f3460; color: #0f3460; }
-    .user-bar-detail { font-size: .78rem; color: #999; margin-left: 4px; }
+
+    /* ── Responsive ──────────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .header-inner { padding: 0 16px; }
+      .site-nav, .header-actions .btn-login { display: none; }
+      .page-container { padding: 20px 16px 60px; }
+      .filters { flex-direction: column; gap: 12px; }
+      .event-card { flex-direction: column; }
+      .event-card-date { border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; align-items: center; gap: 16px; min-width: auto; }
+      .event-card-actions { flex-direction: row; min-width: auto; }
+      .footer-main { grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 <body>
 
-  <header>
-    <span class="logo">MyBrand</span>
-    <nav>
-      <a href="/">Hub</a>
-      <a href="/events-list.html">Événements</a>
-    </nav>
+  <!-- POC test bar -->
+  <div class="poc-bar">
+    <div class="poc-bar-inner">
+      <span class="poc-label">⚗ POC —</span>
+      <span style="color:#7a5c00">Simuler en tant que :</span>
+      <div class="poc-tabs" id="user-tabs"></div>
+      <span class="poc-detail" id="user-bar-detail"></span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="/" class="logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--red)"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+        Brain Connect
+      </a>
+      <nav class="site-nav">
+        <a href="#">Product information ▾</a>
+        <a href="#">Area information</a>
+        <a href="/events-list.html" class="active">Seminars/lectures ▾</a>
+        <a href="#">Material list ▾</a>
+        <a href="#">Medical affairs ▾</a>
+      </nav>
+      <div class="header-actions">
+        <button class="btn-login">Login</button>
+        <button class="btn-newmember">New member registration</button>
+      </div>
+    </div>
   </header>
 
-  <!-- User selector bar -->
-  <div class="user-bar">
-    <div class="user-bar-inner">
-      <span class="user-bar-label">👤 Simuler en tant que :</span>
-      <div class="user-tabs" id="user-tabs"></div>
-      <span class="user-bar-detail" id="user-bar-detail"></span>
+  <!-- Main content -->
+  <main class="page-container">
+
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb">
+      <a href="/">TOP</a>
+      <span>›</span>
+      <span>Seminars/lectures</span>
+    </nav>
+
+    <!-- Page title -->
+    <div class="page-title-area">
+      <h1>Seminars/lectures</h1>
+      <div class="underline"></div>
+      <p>Membership registration is required to pre-book and view the <a href="#">online lecture</a>.</p>
     </div>
-  </div>
 
-  <div class="hero">
-    <h1>Nos événements</h1>
-    <p>Tous les événements de l'organisation, synchronisés en temps réel depuis Onomi.</p>
-  </div>
+    <!-- Filters -->
+    <div class="filters">
+      <select class="filter-select">
+        <option value="">Please select an area</option>
+        <option>Migraine</option>
+        <option>Biopeti</option>
+      </select>
+      <select class="filter-select">
+        <option value="">Please select production</option>
+        <option>Materials for patients</option>
+        <option>Product related materials</option>
+      </select>
+      <select class="filter-select">
+        <option value="">Please select a category</option>
+        <option>Materials for patients</option>
+        <option>Product related materials</option>
+        <option>Others</option>
+      </select>
+    </div>
 
-  <div class="container">
+    <!-- List controls -->
+    <div class="list-controls">
+      <button class="btn-display-list">Display in list</button>
+      <span class="sort-label">Sort by date | <strong>Newest</strong></span>
+    </div>
 
-    <!-- Loading -->
+    <!-- States -->
     <div class="state-box" id="state-loading">
       <div class="spinner"></div>
-      <p>Chargement des événements depuis Onomi…</p>
+      <p>Loading events…</p>
     </div>
-
-    <!-- Error -->
     <div class="state-box error" id="state-error" style="display:none">
-      <p>⚠️ Impossible de charger les événements.</p>
+      <p>⚠ Unable to load events.</p>
       <small id="error-detail"></small>
     </div>
-
-    <!-- Empty -->
     <div class="state-box" id="state-empty" style="display:none">
-      <p>Aucun événement disponible pour le moment.</p>
+      <p>No events available at the moment.</p>
     </div>
 
-    <!-- Table -->
-    <div id="state-table" style="display:none">
-      <div class="events-header">
-        <h2>Liste des événements</h2>
-        <span class="count-badge" id="count-badge"></span>
+    <!-- Event list -->
+    <div class="events-list" id="events-list" style="display:none"></div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-main">
+      <div class="footer-brand">
+        <div class="footer-logo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg>
+          Brain Connect
+        </div>
+        <p class="footer-address">Lundbeck Japan Co., Ltd.<br>〒100-0005 Marunouchi Trust Tower Main 17F<br>2-1-1 Marunouchi, Chiyoda-ku, Tokyo</p>
+        <div class="footer-social">
+          <a href="#" title="X/Twitter">𝕏</a>
+          <a href="#" title="LinkedIn">in</a>
+          <a href="#" title="Instagram">◎</a>
+        </div>
       </div>
-      <table class="events-table">
-        <thead>
-          <tr>
-            <th style="width:52px"></th>
-            <th>Titre</th>
-            <th>Statut</th>
-            <th>Date de début</th>
-            <th>Lieu</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="events-tbody"></tbody>
-      </table>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="#">Contact information</a></li>
+          <li><a href="#">Membership menu</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Link</h4>
+        <ul>
+          <li><a href="#">Membership/menu ▾</a></li>
+          <li><a href="#">Terms of service</a></li>
+          <li><a href="#">Contact information</a></li>
+          <li><a href="#">Privacy policy</a></li>
+          <li><a href="#">About cookies</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Connect with Lundbeck</h4>
+        <ul>
+          <li><a href="#">Lundbeck.com</a></li>
+        </ul>
+      </div>
     </div>
-
-    <div style="margin-top:40px">
-      <a class="back" href="/">← Retour au hub</a>
+    <div class="footer-bottom">
+      <span>Privacy policy</span>
+      <span>Copyright © 2024 Lundbeck Japan K.K.</span>
     </div>
-  </div>
+  </footer>
 
   <script>
-    // ── User selector ──────────────────────────────────────────────────────────
+    // ── POC user selector ──────────────────────────────────────────────────────
     const USERS = [
       { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
       { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com', uuid: '9f2c4a81' },
     ];
 
     function getCurrentUserIdx() {
-      return parseInt(sessionStorage.getItem('selected_user') ?? '0');
+      const v = sessionStorage.getItem('selected_user');
+      return v === null ? 0 : parseInt(v);
     }
-    function getCurrentUser() { return USERS[getCurrentUserIdx()]; }
+    function getCurrentUser() {
+      const idx = getCurrentUserIdx();
+      return idx >= 0 ? USERS[idx] : null;
+    }
     function selectUser(idx) {
       sessionStorage.setItem('selected_user', idx);
       renderUserBar();
     }
     function renderUserBar() {
       const idx  = getCurrentUserIdx();
-      const user = USERS[idx];
+      const user = getCurrentUser();
       document.getElementById('user-tabs').innerHTML = USERS.map((u, i) =>
-        `<button class="user-tab ${i === idx ? 'active' : ''}" onclick="selectUser(${i})">
+        `<button class="poc-tab ${i === idx ? 'active' : ''}" onclick="selectUser(${i})">
           ${u.fname} ${u.lname}
         </button>`
       ).join('');
-      document.getElementById('user-bar-detail').textContent = `(${user.email} · UUID ${user.uuid})`;
+      document.getElementById('user-bar-detail').textContent =
+        user ? `${user.email} · UUID ${user.uuid}` : '';
     }
     renderUserBar();
 
-    function formatDate(iso) {
-      if (!iso) return '—';
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function getEventType(event) {
+      if (event.format === 'virtual')   return 'Web seminar';
+      if (event.format === 'in_person') return 'Lecture';
+      if (event.format === 'hybrid')    return 'Hybrid';
+      return 'Seminar';
+    }
+
+    function parseDateParts(iso) {
+      if (!iso) return { month: '', day: '—', time: '' };
       const d = new Date(iso);
       return {
-        date: d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
-        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        month: d.toLocaleDateString('en-US', { month: 'long' }).toLowerCase(),
+        day:   d.getDate(),
+        time:  d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       };
     }
 
-    function statusBadge(status) {
-      const map = {
-        live:      ['badge-live',      '🔴 En direct'],
-        scheduled: ['badge-scheduled', 'À venir'],
-        published: ['badge-scheduled', 'À venir'],
-        ended:     ['badge-ended',     'Terminé'],
-        draft:     ['badge-draft',     'Brouillon'],
-      };
-      const [cls, label] = map[status] ?? ['badge-draft', status ?? '—'];
-      return `<span class="badge ${cls}">${label}</span>`;
+    function parseEndTime(iso) {
+      if (!iso) return '';
+      return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     }
 
-    function renderRow(event) {
-      const dt   = formatDate(event.start_date);
-      const thumb = event.cover_image
-        ? `<div class="cover-thumb"><img src="${event.cover_image}" alt="" loading="lazy"></div>`
-        : `<div class="cover-thumb">📡</div>`;
+    // ── Render card ────────────────────────────────────────────────────────────
+    function renderCard(event) {
+      const { month, day, time } = parseDateParts(event.start_date);
+      const endTime  = parseEndTime(event.end_date);
+      const timeStr  = time && endTime ? `${time}〜${endTime}` : (time || '—');
+      const type     = getEventType(event);
+      const detailUrl = `/event-detail.html?id=${encodeURIComponent(event.id)}`;
+
+      let regBtn;
+      if (event.status === 'ended') {
+        regBtn = `<span class="btn-prereg ended">Event ended</span>`;
+      } else {
+        regBtn = `<a href="${detailUrl}" class="btn-prereg">Pre-registration</a>`;
+      }
 
       return `
-        <tr>
-          <td>${thumb}</td>
-          <td>
-            <a class="event-title-link" href="/event-detail.html?id=${encodeURIComponent(event.id)}">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              ${event.title}
-            </a>
-          </td>
-          <td>${statusBadge(event.status)}</td>
-          <td class="date-cell">
-            ${dt.date}<br><span class="time">${dt.time}</span>
-          </td>
-          <td class="location-cell">${event.location ?? '—'}</td>
-          <td>
-            <a class="btn-detail" href="/event-detail.html?id=${encodeURIComponent(event.id)}">
-              Voir
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-            </a>
-          </td>
-        </tr>`;
+        <div class="event-card">
+          <div class="event-card-date">
+            <span class="event-type-badge">${type}</span>
+            <div class="date-block">
+              <span class="date-month">${month}</span>
+              <span class="date-day">${day}</span>
+              <span class="date-time">${timeStr}</span>
+            </div>
+          </div>
+          <div class="event-card-body">
+            <h3><a href="${detailUrl}">${event.title}</a></h3>
+            ${event.location ? `<p class="event-performers">${event.location}</p>` : ''}
+          </div>
+          <div class="event-card-actions">
+            <a href="${detailUrl}" class="btn-content">Content details</a>
+            ${regBtn}
+          </div>
+        </div>`;
     }
 
+    // ── Load events ────────────────────────────────────────────────────────────
     async function loadEvents() {
       try {
-        const res  = await fetch('/api/onomi/events');
+        const res = await fetch('/api/onomi/events');
         if (!res.ok) throw new Error(`HTTP ${res.status} — ${await res.text()}`);
         const { events } = await res.json();
 
@@ -297,9 +466,9 @@
           return;
         }
 
-        document.getElementById('count-badge').textContent = `${events.length} événement${events.length > 1 ? 's' : ''}`;
-        document.getElementById('events-tbody').innerHTML = events.map(renderRow).join('');
-        document.getElementById('state-table').style.display = 'block';
+        const list = document.getElementById('events-list');
+        list.innerHTML = events.map(renderCard).join('');
+        list.style.display = 'flex';
 
       } catch (err) {
         document.getElementById('state-loading').style.display = 'none';
