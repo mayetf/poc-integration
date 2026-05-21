@@ -393,6 +393,14 @@
       }
     }
 
+    // Active user = selected tab OR user decoded from email token (no tab selected)
+    function getEmailLinkUser() {
+      try { return JSON.parse(sessionStorage.getItem('email_link_user') || 'null'); } catch { return null; }
+    }
+    function getActiveUser() {
+      return getCurrentUser() ?? getEmailLinkUser();
+    }
+
     function renderUserBar() {
       const idx  = getCurrentUserIdx();
       const user = getCurrentUser();
@@ -427,19 +435,19 @@
       return `spotme_reg_${uuid}_${eventId}`;
     }
     function getRegisteredData(eventId) {
-      const user = getCurrentUser();
+      const user = getActiveUser();
       if (!user) return null;
       try { return JSON.parse(localStorage.getItem(lsKey(user.uuid, eventId)) || 'null'); } catch { return null; }
     }
     function setRegisteredData(eventId, data) {
-      const user = getCurrentUser();
+      const user = getActiveUser();
       if (!user) return;
       localStorage.setItem(lsKey(user.uuid, eventId), JSON.stringify(data));
     }
 
-    // ── Pre-fill form with current user ───────────────────────────────────────
+    // ── Pre-fill form with active user ────────────────────────────────────────
     function prefillForm() {
-      const u = getCurrentUser();
+      const u = getActiveUser();
       document.getElementById('f-first').value = u?.fname ?? '';
       document.getElementById('f-last').value  = u?.lname ?? '';
       document.getElementById('f-email').value = u?.email ?? '';
@@ -449,9 +457,9 @@
     // Always calls the API — localStorage is only used to store the login_url,
     // never as a substitute for the actual registration check.
     async function checkRegistrationStatus(eventId) {
-      const user   = getCurrentUser();
-      const box    = document.getElementById('reg-status-box');
-      const title  = document.getElementById('reg-status-title');
+      const user  = getActiveUser();
+      const box   = document.getElementById('reg-status-box');
+      const title = document.getElementById('reg-status-title');
 
       if (!user) {
         title.textContent = 'Statut d\'inscription';
@@ -490,7 +498,7 @@
 
     function showRegisteredStatus(eventId, loginUrl) {
       const box  = document.getElementById('reg-status-box');
-      const user = getCurrentUser();
+      const user = getActiveUser();
       box.className = 'reg-status registered';
       box.innerHTML = `✅ <strong>${user.fname} ${user.lname}</strong> est inscrit(e).`
         + (loginUrl
@@ -646,7 +654,12 @@
       btn.disabled = true;
       btn.textContent = 'Inscription en cours…';
 
-      const user_uuid = getCurrentUser().uuid;
+      const user_uuid = getActiveUser()?.uuid;
+      if (!user_uuid) {
+        errEl.textContent = 'Sélectionnez un utilisateur simulé.';
+        errEl.classList.add('show');
+        return;
+      }
 
       try {
         const res = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/register`, {
@@ -703,8 +716,12 @@
     }
 
     async function autoRegisterFromToken(eventId, token) {
-      // No tab selected when arriving via email link
+      // No tab selected — identity comes from the token
       sessionStorage.setItem('selected_user', '-1');
+      const payload = decodeTokenPayload(token);
+      if (payload) sessionStorage.setItem('email_link_user', JSON.stringify({
+        uuid: payload.uuid, fname: payload.fname, lname: payload.lname, email: payload.email,
+      }));
       renderUserBar();
 
       try {
@@ -720,8 +737,7 @@
           return;
         }
 
-        // Cache under the token user's uuid (not the selected tab user)
-        const payload = decodeTokenPayload(token);
+        // Cache under the token user's uuid
         if (payload?.uuid && data.login_url) {
           localStorage.setItem(lsKey(payload.uuid, eventId), JSON.stringify({ login_url: data.login_url }));
         }
