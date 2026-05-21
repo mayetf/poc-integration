@@ -25,3 +25,7 @@ services:
         sync: false
       - key: ONOMI_ORG_ID
         sync: false
+      - key: REGISTRATION_LINK_SECRET
+        sync: false
+      - key: BASE_URL
+        value: https://poc-integration.onrender.com
