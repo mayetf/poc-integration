@@ -38,6 +38,8 @@
     }
     .poc-tab.active { background: var(--red); color: var(--white); border-color: var(--red); }
     .poc-tab:hover:not(.active) { border-color: var(--red); color: var(--red); }
+    .poc-tab-custom { border-style: dashed; }
+    .poc-tab-custom.active { border-style: solid; }
     .poc-detail { color: #aaa; }
 
     /* ── Email registration banner ───────────────────────────────────────────── */
@@ -471,7 +473,7 @@
       <div class="modal-form" id="modal-form">
         <h2>Pre-registration</h2>
         <p class="modal-subtitle" id="modal-event-title"></p>
-        <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:4px;padding:10px 12px;margin-bottom:16px;font-size:.78rem;color:#7a5c00">
+        <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:4px;padding:10px 12px;margin-bottom:16px;font-size:.78rem;color:#7a5c00" id="modal-poc-note">
           ⚗ POC — Registering as simulated user. Fields pre-filled.
         </div>
         <div class="form-row">
@@ -479,6 +481,11 @@
           <div class="form-group"><label>Last name *</label><input id="f-last" required></div>
         </div>
         <div class="form-group"><label>Email *</label><input type="email" id="f-email" required></div>
+        <div class="form-group" id="f-uuid-group" style="display:none">
+          <label>UUID *</label>
+          <input id="f-uuid" placeholder="e.g. abc12345" autocomplete="off">
+          <small style="display:block;margin-top:4px;font-size:.72rem;color:var(--text-muted)">Unique identifier used as SpotMe person ID for this user.</small>
+        </div>
         <div class="form-error" id="form-error"></div>
         <button class="btn-submit" id="btn-submit">Pre-register</button>
       </div>
@@ -503,17 +510,27 @@
 
     function getCurrentUserIdx() {
       const v = sessionStorage.getItem('selected_user');
+      if (v === 'custom') return 'custom';
       return v === null ? 0 : parseInt(v);
+    }
+    function getCustomUser() {
+      try { return JSON.parse(sessionStorage.getItem('custom_user') || 'null'); } catch { return null; }
     }
     function getCurrentUser() {
       const idx = getCurrentUserIdx();
+      if (idx === 'custom') return getCustomUser();
       return idx >= 0 ? USERS[idx] : null;
     }
+    // Clicking the Custom tab always opens the modal to define / redefine the custom user
     function selectUser(idx) {
       sessionStorage.setItem('selected_user', idx);
       renderUserBar();
+      if (idx === 'custom') {
+        openModal(true);
+        return;
+      }
       if (currentEvent) {
-        prefillForm();
+        prefillForm(false);
         checkRegistrationStatus(currentEvent.id);
         renderCTA(currentEvent);
       }
@@ -527,28 +544,24 @@
     function renderUserBar() {
       const idx  = getCurrentUserIdx();
       const user = getCurrentUser();
-      document.getElementById('user-tabs').innerHTML = USERS.map((u, i) =>
-        `<button class="poc-tab ${i === idx ? 'active' : ''}" onclick="selectUser(${i})">${u.fname} ${u.lname}</button>`
-      ).join('');
+      document.getElementById('user-tabs').innerHTML =
+        USERS.map((u, i) =>
+          `<button class="poc-tab ${i === idx ? 'active' : ''}" onclick="selectUser(${i})">${u.fname} ${u.lname}</button>`
+        ).join('') +
+        `<button class="poc-tab poc-tab-custom ${idx === 'custom' ? 'active' : ''}" onclick="selectUser('custom')">+ Custom</button>`;
       document.getElementById('user-bar-detail').textContent =
-        user ? `${user.email} · UUID ${user.uuid}` : '';
+        user ? `${user.email} · UUID ${user.uuid}`
+             : (idx === 'custom' ? 'Fill in the form to register a custom user' : '');
     }
     renderUserBar();
 
     // ── Helpers ────────────────────────────────────────────────────────────────
-    function formatDate(iso) {
-      if (!iso) return '—';
-      return new Date(iso).toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      });
-    }
     function getParams() { return new URLSearchParams(window.location.search); }
 
     // ── State ──────────────────────────────────────────────────────────────────
     let currentEvent = null;
 
-    function lsKey(uuid, eventId)    { return `spotme_reg_${uuid}_${eventId}`; }
+    function lsKey(uuid, eventId) { return `spotme_reg_${uuid}_${eventId}`; }
     function getRegisteredData(eventId) {
       const user = getActiveUser();
       if (!user) return null;
@@ -560,11 +573,20 @@
       localStorage.setItem(lsKey(user.uuid, eventId), JSON.stringify(data));
     }
 
-    function prefillForm() {
-      const u = getActiveUser();
-      document.getElementById('f-first').value = u?.fname ?? '';
-      document.getElementById('f-last').value  = u?.lname ?? '';
-      document.getElementById('f-email').value = u?.email ?? '';
+    // Populate the form fields from the active user (or the custom user in custom mode)
+    function prefillForm(customMode) {
+      if (customMode) {
+        const cu = getCustomUser();      // pre-fill with previous custom values if any
+        document.getElementById('f-first').value = cu?.fname ?? '';
+        document.getElementById('f-last').value  = cu?.lname ?? '';
+        document.getElementById('f-email').value = cu?.email ?? '';
+        document.getElementById('f-uuid').value  = cu?.uuid  ?? '';
+      } else {
+        const u = getActiveUser();
+        document.getElementById('f-first').value = u?.fname ?? '';
+        document.getElementById('f-last').value  = u?.lname ?? '';
+        document.getElementById('f-email').value = u?.email ?? '';
+      }
     }
 
     // ── Registration status check ──────────────────────────────────────────────
@@ -594,7 +616,7 @@
           setRegisteredData(eventId, { login_url });
           showRegisteredStatus(eventId, login_url);
         } else {
-          if (user) localStorage.removeItem(lsKey(user.uuid, eventId));
+          localStorage.removeItem(lsKey(user.uuid, eventId));
           box.className = 'reg-status not-registered';
           box.innerHTML = `Not yet registered — <strong>${user.fname} ${user.lname}</strong>`;
         }
@@ -622,21 +644,17 @@
       currentEvent = event;
       document.title = event.title + ' — Brain Connect';
 
-      // Breadcrumb
       document.getElementById('breadcrumb-title').textContent = event.title;
 
-      // Cover image
       if (event.cover_image) {
         const flyerBox = document.getElementById('flyer-box');
         flyerBox.innerHTML = `<img src="${event.cover_image}" alt="${event.title}">`;
         document.getElementById('flyer-caption').style.display = 'block';
       }
 
-      // Description
       const desc = event.description || 'This event is part of the Seminars/Lectures programme. Membership registration is required to pre-book and view the online lecture.';
       document.getElementById('event-description').innerHTML = desc.replace(/\n/g, '<br>');
 
-      // Metadata with ■ bullets
       const startStr = event.start_date
         ? new Date(event.start_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
           + ' ' + new Date(event.start_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -691,8 +709,7 @@
         </div>` : ''}
       `;
 
-      // CTA + status check
-      prefillForm();
+      prefillForm(false);
       renderCTA(event);
       checkRegistrationStatus(event.id);
     }
@@ -734,12 +751,20 @@
       container.innerHTML = `
         <button class="btn-prereg" id="btn-open-modal">Pre-registration</button>
         <a href="/events-list.html" class="btn-return">← Return to seminar/lecture list</a>`;
-      document.getElementById('btn-open-modal').addEventListener('click', openModal);
+      document.getElementById('btn-open-modal').addEventListener('click', () => openModal(false));
     }
 
     // ── Modal ──────────────────────────────────────────────────────────────────
-    function openModal() {
-      prefillForm();
+    function openModal(customMode) {
+      prefillForm(customMode);
+
+      // Show/hide UUID field and update the POC note based on mode
+      document.getElementById('f-uuid-group').style.display  = customMode ? 'block' : 'none';
+      document.getElementById('modal-poc-note').textContent  = customMode
+        ? '⚗ POC — Enter any values to simulate a custom user registration.'
+        : '⚗ POC — Registering as simulated user. Fields pre-filled.';
+
+      document.getElementById('modal').dataset.customMode = customMode;
       document.getElementById('modal-event-title').textContent = currentEvent?.title ?? '';
       document.getElementById('modal-form').classList.remove('hide');
       document.getElementById('modal-success').classList.remove('show');
@@ -748,27 +773,47 @@
       document.getElementById('btn-submit').textContent = 'Pre-register';
       document.getElementById('modal').classList.add('open');
     }
-    document.getElementById('modal-close').addEventListener('click', () => document.getElementById('modal').classList.remove('open'));
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+      // If custom mode was cancelled before registering, fall back to user 0
+      if (document.getElementById('modal').dataset.customMode === 'true' && !getCustomUser()) {
+        sessionStorage.setItem('selected_user', '0');
+        renderUserBar();
+      }
+    }
+    document.getElementById('modal-close').addEventListener('click', closeModal);
     document.getElementById('modal').addEventListener('click', e => {
-      if (e.target === document.getElementById('modal')) document.getElementById('modal').classList.remove('open');
+      if (e.target === document.getElementById('modal')) closeModal();
     });
 
     // ── Submit ─────────────────────────────────────────────────────────────────
     document.getElementById('btn-submit').addEventListener('click', async () => {
-      const eventId = getParams().get('id');
-      const fname   = document.getElementById('f-first').value.trim();
-      const lname   = document.getElementById('f-last').value.trim();
-      const email   = document.getElementById('f-email').value.trim();
-      const errEl   = document.getElementById('form-error');
+      const eventId    = getParams().get('id');
+      const fname      = document.getElementById('f-first').value.trim();
+      const lname      = document.getElementById('f-last').value.trim();
+      const email      = document.getElementById('f-email').value.trim();
+      const errEl      = document.getElementById('form-error');
+      const customMode = document.getElementById('modal').dataset.customMode === 'true';
 
       if (!fname || !lname || !email) {
         errEl.textContent = 'Please fill in all required fields.';
         errEl.classList.add('show'); return;
       }
-      const user_uuid = getActiveUser()?.uuid;
-      if (!user_uuid) {
-        errEl.textContent = 'Please select a simulated user first.';
-        errEl.classList.add('show'); return;
+
+      let user_uuid;
+      if (customMode) {
+        user_uuid = document.getElementById('f-uuid').value.trim();
+        if (!user_uuid) {
+          errEl.textContent = 'Please enter a UUID for this custom user.';
+          errEl.classList.add('show'); return;
+        }
+      } else {
+        user_uuid = getActiveUser()?.uuid;
+        if (!user_uuid) {
+          errEl.textContent = 'Please select a simulated user first.';
+          errEl.classList.add('show'); return;
+        }
       }
 
       errEl.classList.remove('show');
@@ -786,6 +831,12 @@
           errEl.textContent = data.error ?? 'An error occurred.';
           errEl.classList.add('show');
           btn.disabled = false; btn.textContent = 'Pre-register'; return;
+        }
+
+        // Persist custom user identity so status checks and CTA reflect correct user
+        if (customMode) {
+          sessionStorage.setItem('custom_user', JSON.stringify({ fname, lname, email, uuid: user_uuid }));
+          renderUserBar();
         }
 
         const login_url = data.login_url ?? null;
