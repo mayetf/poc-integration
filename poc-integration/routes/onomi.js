@@ -116,7 +116,7 @@ function normaliseEvent(e) {
 //   "unchanged" → no changes detected; SpotMe omits login_url — must GET it
 async function registerPerson(workspaceId, personId, fname, lname, email) {
   const { data } = await onomiClient.post(
-    `/workspace/${workspaceId}/global/docs/person`,
+    `/workspace/${workspaceId}/global/docs/person?send_reg_confirmation=true`,
     { fname, lname, email, _id: personId }
   );
 
