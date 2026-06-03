@@ -274,16 +274,6 @@
 
     <!-- Filters -->
     <div class="filters">
-      <select class="filter-select">
-        <option value="">Please select an area</option>
-        <option>Migraine</option>
-        <option>Biopeti</option>
-      </select>
-      <select class="filter-select">
-        <option value="">Please select production</option>
-        <option>Materials for patients</option>
-        <option>Product related materials</option>
-      </select>
       <select class="filter-select" id="filter-tag">
         <option value="">All tags</option>
       </select>
@@ -462,8 +452,6 @@
         select.appendChild(opt);
       });
       // Hide the dropdown if no events have any tags
-      select.closest('.filter-select') ?? select;
-      select.style.display = tags.length ? '' : 'none';
     }
 
     function applyFilters() {
