@@ -350,9 +350,11 @@
 
   <script>
     // ── POC user selector ──────────────────────────────────────────────────────
+    // uuid: internal identifier used as the SpotMe _id suffix and stored in lu_hcp_id.
+    // In production this would be the HCP CRM ID.
     const USERS = [
-      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com'   },
-      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com' },
+      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
+      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com', uuid: '33333333' },
     ];
 
     function getCurrentUserIdx() {

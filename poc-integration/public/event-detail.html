@@ -481,6 +481,7 @@
           <div class="form-group"><label>Last name *</label><input id="f-last" required></div>
         </div>
         <div class="form-group"><label>Email *</label><input type="email" id="f-email" required></div>
+        <div class="form-group"><label>HCP ID (UUID) *</label><input id="f-uuid" required placeholder="e.g. 12345678"></div>
         <div class="form-error" id="form-error"></div>
         <button class="btn-submit" id="btn-submit">Pre-register</button>
       </div>
@@ -498,9 +499,11 @@
 
   <script>
     // ── Simulated users (POC) ──────────────────────────────────────────────────
+    // uuid: internal identifier used as the SpotMe _id suffix and stored in lu_hcp_id.
+    // In production this would be the HCP CRM ID.
     const USERS = [
-      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com'   },
-      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com' },
+      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
+      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com', uuid: '33333333' },
     ];
 
     function getCurrentUserIdx() {
@@ -556,16 +559,16 @@
     // ── State ──────────────────────────────────────────────────────────────────
     let currentEvent = null;
 
-    function lsKey(email, eventId) { return `spotme_reg_${email}_${eventId}`; }
+    function lsKey(uuid, eventId) { return `spotme_reg_${uuid}_${eventId}`; }
     function getRegisteredData(eventId) {
       const user = getActiveUser();
-      if (!user) return null;
-      try { return JSON.parse(localStorage.getItem(lsKey(user.email, eventId)) || 'null'); } catch { return null; }
+      if (!user?.uuid) return null;
+      try { return JSON.parse(localStorage.getItem(lsKey(user.uuid, eventId)) || 'null'); } catch { return null; }
     }
     function setRegisteredData(eventId, data) {
       const user = getActiveUser();
-      if (!user) return;
-      localStorage.setItem(lsKey(user.email, eventId), JSON.stringify(data));
+      if (!user?.uuid) return;
+      localStorage.setItem(lsKey(user.uuid, eventId), JSON.stringify(data));
     }
 
     // Populate the form fields from the active user (or previous custom values)
@@ -574,6 +577,7 @@
       document.getElementById('f-first').value = u?.fname ?? '';
       document.getElementById('f-last').value  = u?.lname ?? '';
       document.getElementById('f-email').value = u?.email ?? '';
+      document.getElementById('f-uuid').value  = u?.uuid  ?? '';
     }
 
     // ── Registration status check ──────────────────────────────────────────────
@@ -588,13 +592,19 @@
         box.innerHTML = '<em>Select a simulated user to check status.</em>';
         return;
       }
+      if (!user.uuid) {
+        title.textContent = `Status — ${user.fname} ${user.lname}`;
+        box.className = 'reg-status checking';
+        box.innerHTML = '<em>Register this user first to enable status checking.</em>';
+        return;
+      }
 
       title.textContent = `Status — ${user.fname} ${user.lname}`;
       box.className = 'reg-status checking';
       box.innerHTML = '<em>Checking…</em>';
 
       try {
-        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?email=${encodeURIComponent(user.email)}`);
+        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?user_uuid=${encodeURIComponent(user.uuid)}`);
         const data = await res.json();
 
         if (data.registered) {
@@ -603,7 +613,7 @@
           setRegisteredData(eventId, { login_url });
           showRegisteredStatus(eventId, login_url);
         } else {
-          localStorage.removeItem(lsKey(user.email, eventId));
+          localStorage.removeItem(lsKey(user.uuid, eventId));
           box.className = 'reg-status not-registered';
           box.innerHTML = `Not yet registered — <strong>${user.fname} ${user.lname}</strong>`;
         }
@@ -778,15 +788,11 @@
       const fname      = document.getElementById('f-first').value.trim();
       const lname      = document.getElementById('f-last').value.trim();
       const email      = document.getElementById('f-email').value.trim();
+      const uuidInput  = document.getElementById('f-uuid').value.trim();
       const errEl      = document.getElementById('form-error');
       const customMode = document.getElementById('modal').dataset.customMode === 'true';
 
-      if (!fname || !lname || !email) {
-        errEl.textContent = 'Please fill in all required fields.';
-        errEl.classList.add('show'); return;
-      }
-
-      if (!email) {
+      if (!fname || !lname || !email || !uuidInput) {
         errEl.textContent = 'Please fill in all required fields.';
         errEl.classList.add('show'); return;
       }
@@ -798,7 +804,7 @@
       try {
         const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/register`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fname, lname, email }),
+          body: JSON.stringify({ fname, lname, email, user_uuid: uuidInput }),
         });
         const data = await res.json();
 
@@ -810,7 +816,7 @@
 
         // Persist custom user identity so status checks and CTA reflect correct user
         if (customMode) {
-          sessionStorage.setItem('custom_user', JSON.stringify({ fname, lname, email }));
+          sessionStorage.setItem('custom_user', JSON.stringify({ fname, lname, email, uuid: uuidInput }));
           renderUserBar();
         }
 
@@ -843,7 +849,7 @@
       sessionStorage.setItem('selected_user', '-1');
       const payload = decodeTokenPayload(token);
       if (payload) sessionStorage.setItem('email_link_user', JSON.stringify({
-        fname: payload.fname, lname: payload.lname, email: payload.email,
+        fname: payload.fname, lname: payload.lname, email: payload.email, uuid: payload.uuid,
       }));
       renderUserBar();
 
@@ -856,8 +862,8 @@
 
         if (!res.ok) { console.warn('[auto-register] failed:', data.error); return; }
 
-        if (payload?.email && data.login_url) {
-          localStorage.setItem(lsKey(payload.email, eventId), JSON.stringify({ login_url: data.login_url }));
+        if (payload?.uuid && data.login_url) {
+          localStorage.setItem(lsKey(payload.uuid, eventId), JSON.stringify({ login_url: data.login_url }));
         }
 
         const banner = document.getElementById('email-reg-banner');
