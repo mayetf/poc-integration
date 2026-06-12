@@ -110,21 +110,27 @@ function normaliseEvent(e) {
 }
 
 // ─── Helper: create/update a person and return the login URL ─────────────────
-// SpotMe POST /workspace/{id}/global/docs/person responses:
+// The SpotMe person _id follows the format {workspace_id}_{email}.
+// Using email as the identifier makes the backstage_id meaningful in Backstage
+// and avoids exposing arbitrary internal UUIDs in the SpotMe attendee list.
+//
+// SpotMe POST responses:
 //   "created"   → person was created; login_url is present
 //   "updated"   → person was updated; login_url is present
 //   "unchanged" → no changes detected; SpotMe omits login_url — must GET it
-async function registerPerson(workspaceId, personId, fname, lname, email) {
+async function registerPerson(workspaceId, email, fname, lname) {
+  const personId = `${workspaceId}_${email}`;
+
   const { data } = await onomiClient.post(
     `/workspace/${workspaceId}/global/docs/person?send_reg_confirmation=true`,
     { fname, lname, email, _id: personId }
   );
 
-  console.log(`[SpotMe] registerPerson ${data.status} → ${personId} (${email})`);
+  console.log(`[SpotMe] registerPerson ${data.status} → ${personId}`);
 
   if (data.status === 'unchanged') {
     const { data: person } = await onomiClient.get(
-      `/workspace/${workspaceId}/global/docs/person/${personId}`
+      `/workspace/${workspaceId}/global/docs/person/${encodeURIComponent(personId)}`
     );
     return { status: 'already_registered', login_url: person.login_url ?? null };
   }
@@ -168,20 +174,20 @@ router.get('/events/:id', async (req, res) => {
 });
 
 /**
- * GET /api/onomi/events/:id/check-registration?user_uuid=…
+ * GET /api/onomi/events/:id/check-registration?email=…
  * Check whether a user is already registered for an event.
- * SpotMe v2: GET /workspace/{id}/global/docs/person/{workspace_id}_{user_uuid}
+ * SpotMe v2: GET /workspace/{id}/global/docs/person/{workspace_id}_{email}
  *
  * Returns: { registered: boolean, login_url: string|null, person: object|null }
  */
 router.get('/events/:id/check-registration', async (req, res) => {
-  const { user_uuid } = req.query;
-  if (!user_uuid) return res.status(400).json({ error: 'user_uuid query param required' });
+  const { email } = req.query;
+  if (!email) return res.status(400).json({ error: 'email query param required' });
 
-  const personId = `${req.params.id}_${user_uuid}`;
+  const personId = `${req.params.id}_${email}`;
 
   try {
-    const { data } = await onomiClient.get(`/workspace/${req.params.id}/global/docs/person/${personId}`);
+    const { data } = await onomiClient.get(`/workspace/${req.params.id}/global/docs/person/${encodeURIComponent(personId)}`);
     // fp_status === 'active' means the person is registered and not deactivated
     const registered = data.fp_status === 'active';
     res.json({
@@ -209,22 +215,21 @@ router.get('/events/:id/check-registration', async (req, res) => {
  * Create a person in SpotMe and return the magic link.
  * SpotMe v2: POST /workspace/{id}/global/docs/person
  *
- * Body:    { fname, lname, email, user_uuid }
+ * Body:    { fname, lname, email }
  * Returns: { success, status, login_url, person_id }
  */
 router.post('/events/:id/register', async (req, res) => {
-  const { fname, lname, email, user_uuid } = req.body;
+  const { fname, lname, email } = req.body;
 
-  if (!fname || !lname || !email || !user_uuid) {
-    return res.status(400).json({ error: 'fname, lname, email and user_uuid are required' });
+  if (!fname || !lname || !email) {
+    return res.status(400).json({ error: 'fname, lname and email are required' });
   }
 
   const workspaceId = req.params.id;
-  const personId    = `${workspaceId}_${user_uuid}`;
 
   try {
-    const result = await registerPerson(workspaceId, personId, fname, lname, email);
-    res.json({ success: true, ...result, person_id: personId });
+    const result = await registerPerson(workspaceId, email, fname, lname);
+    res.json({ success: true, ...result, person_id: `${workspaceId}_${email}` });
   } catch (err) {
     handleError(res, err, `POST /events/${req.params.id}/register`);
   }
@@ -283,12 +288,11 @@ router.post('/events/:id/auto-register', async (req, res) => {
     return res.status(401).json({ error: 'Token / event mismatch' });
   }
 
-  const { uuid: user_uuid, fname, lname, email } = payload;
+  const { fname, lname, email } = payload;
   const workspaceId = req.params.id;
-  const personId    = `${workspaceId}_${user_uuid}`;
 
   try {
-    const result = await registerPerson(workspaceId, personId, fname, lname, email);
+    const result = await registerPerson(workspaceId, email, fname, lname);
     res.json({ success: true, ...result });
   } catch (err) {
     handleError(res, err, `POST /events/${req.params.id}/auto-register`);

@@ -481,11 +481,6 @@
           <div class="form-group"><label>Last name *</label><input id="f-last" required></div>
         </div>
         <div class="form-group"><label>Email *</label><input type="email" id="f-email" required></div>
-        <div class="form-group" id="f-uuid-group" style="display:none">
-          <label>UUID *</label>
-          <input id="f-uuid" placeholder="e.g. abc12345" autocomplete="off">
-          <small style="display:block;margin-top:4px;font-size:.72rem;color:var(--text-muted)">Unique identifier used as SpotMe person ID for this user.</small>
-        </div>
         <div class="form-error" id="form-error"></div>
         <button class="btn-submit" id="btn-submit">Pre-register</button>
       </div>
@@ -504,8 +499,8 @@
   <script>
     // ── Simulated users (POC) ──────────────────────────────────────────────────
     const USERS = [
-      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
-      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com', uuid: '9f2c4a81' },
+      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com'   },
+      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com' },
     ];
 
     function getCurrentUserIdx() {
@@ -550,7 +545,7 @@
         ).join('') +
         `<button class="poc-tab poc-tab-custom ${idx === 'custom' ? 'active' : ''}" onclick="selectUser('custom')">+ Custom</button>`;
       document.getElementById('user-bar-detail').textContent =
-        user ? `${user.email} · UUID ${user.uuid}`
+        user ? user.email
              : (idx === 'custom' ? 'Fill in the form to register a custom user' : '');
     }
     renderUserBar();
@@ -561,32 +556,24 @@
     // ── State ──────────────────────────────────────────────────────────────────
     let currentEvent = null;
 
-    function lsKey(uuid, eventId) { return `spotme_reg_${uuid}_${eventId}`; }
+    function lsKey(email, eventId) { return `spotme_reg_${email}_${eventId}`; }
     function getRegisteredData(eventId) {
       const user = getActiveUser();
       if (!user) return null;
-      try { return JSON.parse(localStorage.getItem(lsKey(user.uuid, eventId)) || 'null'); } catch { return null; }
+      try { return JSON.parse(localStorage.getItem(lsKey(user.email, eventId)) || 'null'); } catch { return null; }
     }
     function setRegisteredData(eventId, data) {
       const user = getActiveUser();
       if (!user) return;
-      localStorage.setItem(lsKey(user.uuid, eventId), JSON.stringify(data));
+      localStorage.setItem(lsKey(user.email, eventId), JSON.stringify(data));
     }
 
-    // Populate the form fields from the active user (or the custom user in custom mode)
+    // Populate the form fields from the active user (or previous custom values)
     function prefillForm(customMode) {
-      if (customMode) {
-        const cu = getCustomUser();      // pre-fill with previous custom values if any
-        document.getElementById('f-first').value = cu?.fname ?? '';
-        document.getElementById('f-last').value  = cu?.lname ?? '';
-        document.getElementById('f-email').value = cu?.email ?? '';
-        document.getElementById('f-uuid').value  = cu?.uuid  ?? '';
-      } else {
-        const u = getActiveUser();
-        document.getElementById('f-first').value = u?.fname ?? '';
-        document.getElementById('f-last').value  = u?.lname ?? '';
-        document.getElementById('f-email').value = u?.email ?? '';
-      }
+      const u = customMode ? getCustomUser() : getActiveUser();
+      document.getElementById('f-first').value = u?.fname ?? '';
+      document.getElementById('f-last').value  = u?.lname ?? '';
+      document.getElementById('f-email').value = u?.email ?? '';
     }
 
     // ── Registration status check ──────────────────────────────────────────────
@@ -607,7 +594,7 @@
       box.innerHTML = '<em>Checking…</em>';
 
       try {
-        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?user_uuid=${encodeURIComponent(user.uuid)}`);
+        const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/check-registration?email=${encodeURIComponent(user.email)}`);
         const data = await res.json();
 
         if (data.registered) {
@@ -616,7 +603,7 @@
           setRegisteredData(eventId, { login_url });
           showRegisteredStatus(eventId, login_url);
         } else {
-          localStorage.removeItem(lsKey(user.uuid, eventId));
+          localStorage.removeItem(lsKey(user.email, eventId));
           box.className = 'reg-status not-registered';
           box.innerHTML = `Not yet registered — <strong>${user.fname} ${user.lname}</strong>`;
         }
@@ -758,8 +745,6 @@
     function openModal(customMode) {
       prefillForm(customMode);
 
-      // Show/hide UUID field and update the POC note based on mode
-      document.getElementById('f-uuid-group').style.display  = customMode ? 'block' : 'none';
       document.getElementById('modal-poc-note').textContent  = customMode
         ? '⚗ POC — Enter any values to simulate a custom user registration.'
         : '⚗ POC — Registering as simulated user. Fields pre-filled.';
@@ -801,19 +786,9 @@
         errEl.classList.add('show'); return;
       }
 
-      let user_uuid;
-      if (customMode) {
-        user_uuid = document.getElementById('f-uuid').value.trim();
-        if (!user_uuid) {
-          errEl.textContent = 'Please enter a UUID for this custom user.';
-          errEl.classList.add('show'); return;
-        }
-      } else {
-        user_uuid = getActiveUser()?.uuid;
-        if (!user_uuid) {
-          errEl.textContent = 'Please select a simulated user first.';
-          errEl.classList.add('show'); return;
-        }
+      if (!email) {
+        errEl.textContent = 'Please fill in all required fields.';
+        errEl.classList.add('show'); return;
       }
 
       errEl.classList.remove('show');
@@ -823,7 +798,7 @@
       try {
         const res  = await fetch(`/api/onomi/events/${encodeURIComponent(eventId)}/register`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fname, lname, email, user_uuid }),
+          body: JSON.stringify({ fname, lname, email }),
         });
         const data = await res.json();
 
@@ -835,7 +810,7 @@
 
         // Persist custom user identity so status checks and CTA reflect correct user
         if (customMode) {
-          sessionStorage.setItem('custom_user', JSON.stringify({ fname, lname, email, uuid: user_uuid }));
+          sessionStorage.setItem('custom_user', JSON.stringify({ fname, lname, email }));
           renderUserBar();
         }
 
@@ -868,7 +843,7 @@
       sessionStorage.setItem('selected_user', '-1');
       const payload = decodeTokenPayload(token);
       if (payload) sessionStorage.setItem('email_link_user', JSON.stringify({
-        uuid: payload.uuid, fname: payload.fname, lname: payload.lname, email: payload.email,
+        fname: payload.fname, lname: payload.lname, email: payload.email,
       }));
       renderUserBar();
 
@@ -881,8 +856,8 @@
 
         if (!res.ok) { console.warn('[auto-register] failed:', data.error); return; }
 
-        if (payload?.uuid && data.login_url) {
-          localStorage.setItem(lsKey(payload.uuid, eventId), JSON.stringify({ login_url: data.login_url }));
+        if (payload?.email && data.login_url) {
+          localStorage.setItem(lsKey(payload.email, eventId), JSON.stringify({ login_url: data.login_url }));
         }
 
         const banner = document.getElementById('email-reg-banner');

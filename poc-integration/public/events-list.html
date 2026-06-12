@@ -351,8 +351,8 @@
   <script>
     // ── POC user selector ──────────────────────────────────────────────────────
     const USERS = [
-      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
-      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com', uuid: '9f2c4a81' },
+      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com'   },
+      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com' },
     ];
 
     function getCurrentUserIdx() {
@@ -375,8 +375,7 @@
           ${u.fname} ${u.lname}
         </button>`
       ).join('');
-      document.getElementById('user-bar-detail').textContent =
-        user ? `${user.email} · UUID ${user.uuid}` : '';
+      document.getElementById('user-bar-detail').textContent = user ? user.email : '';
     }
     renderUserBar();
 
