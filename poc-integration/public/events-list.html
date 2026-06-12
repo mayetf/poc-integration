@@ -228,7 +228,7 @@
   <div class="poc-bar">
     <div class="poc-bar-inner">
       <span class="poc-label">⚗ POC —</span>
-      <span style="color:#7a5c00">Simuler en tant que :</span>
+      <span style="color:#7a5c00">Simulate as:</span>
       <div class="poc-tabs" id="user-tabs"></div>
       <span class="poc-detail" id="user-bar-detail"></span>
     </div>
@@ -274,28 +274,15 @@
 
     <!-- Filters -->
     <div class="filters">
-      <select class="filter-select">
-        <option value="">Please select an area</option>
-        <option>Migraine</option>
-        <option>Biopeti</option>
-      </select>
-      <select class="filter-select">
-        <option value="">Please select production</option>
-        <option>Materials for patients</option>
-        <option>Product related materials</option>
-      </select>
-      <select class="filter-select">
-        <option value="">Please select a category</option>
-        <option>Materials for patients</option>
-        <option>Product related materials</option>
-        <option>Others</option>
+      <select class="filter-select" id="filter-tag">
+        <option value="">All tags</option>
       </select>
     </div>
 
     <!-- List controls -->
     <div class="list-controls">
       <button class="btn-display-list">Display in list</button>
-      <span class="sort-label">Sort by date | <strong>Newest</strong></span>
+      <span class="sort-label" id="results-count"></span>
     </div>
 
     <!-- States -->
@@ -364,8 +351,8 @@
   <script>
     // ── POC user selector ──────────────────────────────────────────────────────
     const USERS = [
-      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com',   uuid: '12345678' },
-      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com', uuid: '9f2c4a81' },
+      { fname: 'Franck',  lname: 'MAYET',  email: 'franck.mayet@gmail.com'   },
+      { fname: 'Franck3', lname: 'MAYET3', email: 'franck.mayet+3@gmail.com' },
     ];
 
     function getCurrentUserIdx() {
@@ -388,8 +375,7 @@
           ${u.fname} ${u.lname}
         </button>`
       ).join('');
-      document.getElementById('user-bar-detail').textContent =
-        user ? `${user.email} · UUID ${user.uuid}` : '';
+      document.getElementById('user-bar-detail').textContent = user ? user.email : '';
     }
     renderUserBar();
 
@@ -407,13 +393,13 @@
       return {
         month: d.toLocaleDateString('en-US', { month: 'long' }).toLowerCase(),
         day:   d.getDate(),
-        time:  d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        time:  d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       };
     }
 
     function parseEndTime(iso) {
       if (!iso) return '';
-      return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
 
     // ── Render card ────────────────────────────────────────────────────────────
@@ -452,6 +438,48 @@
         </div>`;
     }
 
+    // ── Tag filter ─────────────────────────────────────────────────────────────
+    let allEvents = [];
+
+    function buildTagFilter(events) {
+      const tags = [...new Set(events.flatMap(e => e.tags ?? []))].sort();
+      const select = document.getElementById('filter-tag');
+      tags.forEach(tag => {
+        const opt = document.createElement('option');
+        opt.value = tag;
+        opt.textContent = tag;
+        select.appendChild(opt);
+      });
+      // Hide the dropdown if no events have any tags
+    }
+
+    function applyFilters() {
+      const tag = document.getElementById('filter-tag').value;
+      const filtered = tag
+        ? allEvents.filter(e => (e.tags ?? []).includes(tag))
+        : allEvents;
+
+      const list = document.getElementById('events-list');
+
+      if (filtered.length === 0) {
+        list.style.display = 'none';
+        document.getElementById('state-empty').style.display = 'block';
+      } else {
+        document.getElementById('state-empty').style.display = 'none';
+        list.innerHTML = filtered.map(renderCard).join('');
+        list.style.display = 'flex';
+      }
+
+      const countEl = document.getElementById('results-count');
+      if (tag) {
+        countEl.innerHTML = `Showing <strong>${filtered.length}</strong> of ${allEvents.length} events · tag: <strong>${tag}</strong>`;
+      } else {
+        countEl.innerHTML = `<strong>${allEvents.length}</strong> event${allEvents.length !== 1 ? 's' : ''}`;
+      }
+    }
+
+    document.getElementById('filter-tag').addEventListener('change', applyFilters);
+
     // ── Load events ────────────────────────────────────────────────────────────
     async function loadEvents() {
       try {
@@ -466,9 +494,9 @@
           return;
         }
 
-        const list = document.getElementById('events-list');
-        list.innerHTML = events.map(renderCard).join('');
-        list.style.display = 'flex';
+        allEvents = events;
+        buildTagFilter(events);
+        applyFilters();
 
       } catch (err) {
         document.getElementById('state-loading').style.display = 'none';
